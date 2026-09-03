@@ -26,6 +26,7 @@ public final class QueueGate {
     private final QueueBoard board = new QueueBoard();
 
     private volatile QueuePolicy policy;
+    private volatile QueueFile settings;
     private volatile int online;
 
     public QueueGate(Supplier<QueueFile> file, UtilsRegistry registry, Rights rights, Logger log) {
@@ -38,6 +39,7 @@ public final class QueueGate {
     public void arm(int onlineNow, int maxPlayers) {
         online = Math.max(0, onlineNow);
         QueueFile written = file.get();
+        settings = written;
         policy = registry.policy(word(written.queue.policy))
             .orElse(null);
         if (policy == null) {
@@ -63,7 +65,10 @@ public final class QueueGate {
         if (chosen == null) {
             return Answer.let(QueueDecision.NO_TIER);
         }
-        QueueFile written = file.get();
+        QueueFile written = settings;
+        if (written == null) {
+            return Answer.let(QueueDecision.NO_TIER);
+        }
         board.expire(now, written.queue.ticketSeconds);
         SlotRules rules = SlotRules.of(written);
         QueueDecision decision = chosen
@@ -94,20 +99,25 @@ public final class QueueGate {
     }
 
     public int retryHintSeconds() {
-        return Math.max(0, file.get().queue.retryHintSeconds);
+        return Math.max(0, held().queue.retryHintSeconds);
     }
 
     public boolean queueOn() {
-        return file.get().queue.enabled;
+        return held().queue.enabled;
     }
 
     public List<QueueTicket> queue(long now) {
-        board.expire(now, file.get().queue.ticketSeconds);
+        board.expire(now, held().queue.ticketSeconds);
         return board.list();
     }
 
     public SlotRules rules() {
-        return SlotRules.of(file.get());
+        return SlotRules.of(held());
+    }
+
+    private QueueFile held() {
+        QueueFile written = settings;
+        return written == null ? file.get() : written;
     }
 
     public static final class Answer {
