@@ -140,6 +140,7 @@ public final class BroadcastsFile {
         @Comment("Кому слать: измерения по номеру. Пустой список означает все.")
         public List<Integer> dimensions = new ArrayList<>();
 
+        @Comment("Сообщения набора. Порядок в файле это порядок при order = \"cycle\", ключи описаны в шапке файла.")
         public List<MessageBlock> messages = new ArrayList<>();
 
         @Comment("Условия набора. Пустой блок означает «всегда».")

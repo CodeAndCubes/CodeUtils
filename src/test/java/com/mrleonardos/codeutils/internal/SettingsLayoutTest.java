@@ -36,12 +36,10 @@ class SettingsLayoutTest {
         .asList(BroadcastsFile.MessageBlock.class, BroadcastsFile.PartBlock.class);
 
     /**
-     * Описание этих полей стоит шапкой своего файла. У {@code sets} и {@code jobs} вторая такая же
-     * строка над первой секцией была бы повтором; у {@code messages} комментарий поля ядро ставит перед
-     * каждым элементом массива таблиц, то есть перед каждым сообщением набора, и семь строк подряд
-     * повторялись бы столько раз, сколько сообщений в наборе.
+     * Единственная таблица своего файла: описание стоит шапкой файла двумя строками выше, и второй такой
+     * же строкой над первой секцией был бы повтор.
      */
-    private static final List<String> SILENT_FIELDS = Arrays.asList("sets", "jobs", "messages");
+    private static final List<String> SILENT_FIELDS = Arrays.asList("sets", "jobs");
 
     @Test
     void theSettingsFileHoldsTheSwitchesAndTheZone() {
