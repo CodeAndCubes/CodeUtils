@@ -5,7 +5,7 @@ package com.mrleonardos.codeutils.api;
  */
 public interface UtilsRuntime {
 
-    /** Реестры приёмников, условий и исполнителей. */
+    /** Реестры приёмников, условий, исполнителей, защит, шагов остановки и политик очереди. */
     UtilsRegistry registry();
 
     /**

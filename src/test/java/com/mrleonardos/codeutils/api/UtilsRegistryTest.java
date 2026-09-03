@@ -10,6 +10,10 @@ import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 import com.mrleonardos.codeutils.api.message.BroadcastSink;
+import com.mrleonardos.codeutils.api.queue.QueueDecision;
+import com.mrleonardos.codeutils.api.restart.RestartPhase;
+import com.mrleonardos.codeutils.api.restart.RestartPlanView;
+import com.mrleonardos.codeutils.api.restart.RestartStep;
 import com.mrleonardos.codeutils.api.run.RunOutcome;
 
 class UtilsRegistryTest {
@@ -32,12 +36,15 @@ class UtilsRegistryTest {
     }
 
     @Test
-    void everyOneOfTheThreeRegistriesAnswersOnItsOwn() {
+    void everyOneOfTheSixRegistriesAnswersOnItsOwn() {
         UtilsRegistry registry = new UtilsRegistry();
 
         registry.addSink("discord", SINK);
         registry.addCondition("event", snapshot -> true);
         registry.addRunner("mine", ticket -> RunOutcome.ran(1));
+        registry.addGuard("pets", entity -> true);
+        registry.addStep(step("dump", RestartPhase.BEFORE_SAVE));
+        registry.addPolicy("donors", (request, state) -> QueueDecision.let());
 
         assertTrue(
             registry.sink("discord")
@@ -48,10 +55,79 @@ class UtilsRegistryTest {
         assertTrue(
             registry.runner("mine")
                 .isPresent());
+        assertTrue(
+            registry.guard("pets")
+                .isPresent());
+        assertTrue(
+            registry.policy("donors")
+                .isPresent());
+        assertEquals(Arrays.asList("dump"), registry.stepNames());
         assertFalse(
             registry.condition("discord")
                 .isPresent(),
             "имена реестров не смешиваются");
+        assertFalse(
+            registry.guard("discord")
+                .isPresent(),
+            "имена реестров не смешиваются");
+    }
+
+    @Test
+    void everyGuardIsAskedSoTheyAllComeOutTogether() {
+        UtilsRegistry registry = new UtilsRegistry();
+        registry.addGuard("pets", entity -> true);
+        registry.addGuard("shops", entity -> false);
+
+        assertEquals(
+            2,
+            registry.guards()
+                .size());
+        assertEquals(Arrays.asList("pets", "shops"), registry.guardNames());
+    }
+
+    @Test
+    void stepsComeOutByTheirOwnPhaseOnly() {
+        UtilsRegistry registry = new UtilsRegistry();
+        registry.addStep(step("dump", RestartPhase.BEFORE_SAVE));
+        registry.addStep(step("snapshot", RestartPhase.AFTER_SAVE));
+
+        assertEquals(
+            1,
+            registry.steps(RestartPhase.BEFORE_SAVE)
+                .size());
+        assertEquals(
+            "snapshot",
+            registry.steps(RestartPhase.AFTER_SAVE)
+                .get(0)
+                .name());
+        assertTrue(
+            registry.steps(RestartPhase.BEFORE_DOOR)
+                .isEmpty());
+    }
+
+    @Test
+    void aStepWithoutAPhaseIsRefused() {
+        UtilsRegistry registry = new UtilsRegistry();
+
+        assertThrows(IllegalArgumentException.class, () -> registry.addStep(step("dump", null)));
+    }
+
+    private static RestartStep step(String name, RestartPhase phase) {
+        return new RestartStep() {
+
+            @Override
+            public RestartPhase phase() {
+                return phase;
+            }
+
+            @Override
+            public String name() {
+                return name;
+            }
+
+            @Override
+            public void run(RestartPlanView plan) {}
+        };
     }
 
     @Test
