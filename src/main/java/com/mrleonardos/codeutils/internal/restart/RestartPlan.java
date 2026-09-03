@@ -108,7 +108,6 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
         advance(to);
     }
 
-    /** Поставить остановку на это время. */
     public Answer armAt(long stopMillis, RestartReason why) {
         if (runner.stopping()) {
             return Answer.TOO_LATE;
@@ -118,7 +117,6 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
         return Answer.ARMED;
     }
 
-    /** Начать со второго шага: дверь закрывается и игроки уходят прямо сейчас. */
     public Answer now(long millis) {
         if (runner.stopping()) {
             return Answer.TOO_LATE;
@@ -146,12 +144,10 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
         return Answer.CANCELLED;
     }
 
-    /** Поставлена ли остановка. */
     public boolean armed() {
         return stopAt != 0L;
     }
 
-    /** Когда сервер остановится; ноль, если остановка не поставлена. */
     public long stopAt() {
         return stopAt;
     }
@@ -160,17 +156,14 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
         return reason;
     }
 
-    /** Закрыт ли вход. */
     public boolean doorClosed() {
         return doorClosed;
     }
 
-    /** Сколько секунд осталось до остановки; ноль, если она не поставлена. */
     public int secondsLeft(long now) {
         return stopAt == 0L ? 0 : (int) Math.max(0L, (stopAt - now + Clocks.MILLIS - 1) / Clocks.MILLIS);
     }
 
-    /** Ближайшая остановка по расписанию; ноль, если расписания нет. */
     public long nextScheduled(long now) {
         RestartFile written = file.get();
         return schedule == null || !written.schedule.enabled ? 0L : schedule.nextStop(now);

@@ -29,10 +29,12 @@ codeutils.restart.kick=The server is restarting, come back in a minute
 codeutils.restart.door=The server is restarting, come back in a minute
 
 codeutils.queue.header=Slots and queue
-codeutils.queue.row=%s: tier %s, knocking since %s
+codeutils.queue.row=%s. %s: tier %s, knocking since %s
 codeutils.queue.empty=The queue is empty
 codeutils.queue.refused=The server is full, you are number %s. Knock again in %s second(s)
-codeutils.queue.tier=tier %s
+codeutils.queue.full=The server is full, come back later
+codeutils.queue.slots=Online %s, the cap without a tier is %s
+codeutils.queue.tier=Tier %s: cap %s
 
 codeutils.error.unknown_set=There is no set named %s
 codeutils.error.unknown_rule=There is no rule named %s

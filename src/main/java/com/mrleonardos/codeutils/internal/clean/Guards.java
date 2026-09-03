@@ -36,15 +36,10 @@ public final class Guards {
         this.foreign = foreign;
     }
 
-    /** Имена восьми встроенных защит. */
     public static List<String> builtIn() {
         return BUILT_IN;
     }
 
-    /**
-     * Защиты правила: восемь встроенных и все заявленные чужими модами, кроме названных в
-     * {@code ignoreGuards}.
-     */
     public static Guards of(List<String> ignoreGuards, UtilsRegistry registry) {
         Set<String> ignored = new LinkedHashSet<>();
         for (String written : ignoreGuards == null ? new ArrayList<String>() : ignoreGuards) {
@@ -67,7 +62,6 @@ public final class Guards {
         return new Guards(ignored, foreign);
     }
 
-    /** Имена из {@code ignoreGuards}, которых нет ни среди встроенных, ни в реестре. */
     public List<String> unknown(UtilsRegistry registry) {
         List<String> missing = new ArrayList<>();
         for (String name : ignored) {
@@ -83,7 +77,6 @@ public final class Guards {
         return ignored.contains(guard);
     }
 
-    /** Защищена ли сущность хотя бы одной незанятой защитой. */
     public boolean protects(EntityView entity) {
         if (!ignored.contains(NAMED) && entity.named()) {
             return true;

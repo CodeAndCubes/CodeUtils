@@ -6,7 +6,7 @@ import java.util.UUID;
 
 import com.mrleonardos.codecore.api.actor.PlayerRef;
 
-public interface ServerFacts {
+public interface ServerFacts extends Rights {
 
     long now();
 
@@ -17,6 +17,4 @@ public interface ServerFacts {
     Set<Integer> dimensions();
 
     double tickMillis();
-
-    boolean allowed(UUID player, String node);
 }

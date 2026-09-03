@@ -36,9 +36,6 @@ public final class EntityMatcher {
         return lines.isEmpty();
     }
 
-    /**
-     * Список читается слева направо: точное имя и хвост со звёздочкой добавляют, минус вычитает.
-     */
     public boolean matches(EntityView entity) {
         boolean chosen = false;
         for (Line line : lines) {

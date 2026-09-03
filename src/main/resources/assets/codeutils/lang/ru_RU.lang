@@ -29,10 +29,12 @@ codeutils.restart.kick=Сервер перезапускается, заходи
 codeutils.restart.door=Сервер перезапускается, заходите через минуту
 
 codeutils.queue.header=Слоты и очередь
-codeutils.queue.row=%s: ступень %s, стучится с %s
+codeutils.queue.row=%s. %s: ступень %s, стучится с %s
 codeutils.queue.empty=Очередь пуста
 codeutils.queue.refused=Мест нет, вы %s в очереди. Постучитесь снова через %s секунд
-codeutils.queue.tier=ступень %s
+codeutils.queue.full=Мест нет, попробуйте зайти позже
+codeutils.queue.slots=Онлайн %s, потолок без ступени %s
+codeutils.queue.tier=Ступень %s: потолок %s
 
 codeutils.error.unknown_set=Набора %s нет
 codeutils.error.unknown_rule=Правила %s нет

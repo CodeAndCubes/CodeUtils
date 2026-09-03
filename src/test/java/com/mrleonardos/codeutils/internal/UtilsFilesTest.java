@@ -19,6 +19,7 @@ import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile;
 import com.mrleonardos.codeutils.internal.clean.CleanupFile;
 import com.mrleonardos.codeutils.internal.command.CommandRoots;
 import com.mrleonardos.codeutils.internal.job.JobsFile;
+import com.mrleonardos.codeutils.internal.queue.QueueFile;
 import com.mrleonardos.codeutils.internal.restart.RestartFile;
 
 class UtilsFilesTest {
@@ -38,10 +39,12 @@ class UtilsFilesTest {
         assertTrue(Files.exists(folder.resolve(JobsFile.FILE_NAME)), JobsFile.FILE_NAME);
         assertTrue(Files.exists(folder.resolve(RestartFile.FILE_NAME)), RestartFile.FILE_NAME);
         assertTrue(Files.exists(folder.resolve(CleanupFile.FILE_NAME)), CleanupFile.FILE_NAME);
+        assertFalse(Files.exists(folder.resolve(QueueFile.FILE_NAME)), "очередь по умолчанию снята, и файла у неё нет");
         assertNotNull(files.broadcasts());
         assertNotNull(files.jobs());
         assertNotNull(files.restart());
         assertNotNull(files.cleanup());
+        assertNull(files.queue());
     }
 
     @Test
@@ -69,6 +72,25 @@ class UtilsFilesTest {
         assertNull(files.jobs());
         assertNull(files.restart());
         assertNull(files.cleanup());
+    }
+
+    @Test
+    void theQueueGetsItsFileOnceItIsSwitchedOn(@TempDir Path root) {
+        Path config = root.resolve("config");
+        TestConfigs.write(
+            TestConfigs.utils(config)
+                .resolve(SETTINGS_FILE),
+            "schemaVersion = 1",
+            "[on]",
+            "queue = true");
+
+        UtilsFiles files = UtilsFiles.open(TestConfigs.of(config));
+
+        assertTrue(
+            Files.exists(
+                TestConfigs.utils(config)
+                    .resolve(QueueFile.FILE_NAME)));
+        assertNotNull(files.queue());
     }
 
     @Test

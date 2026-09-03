@@ -7,6 +7,8 @@ import java.util.Random;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
+import net.minecraft.server.MinecraftServer;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -39,6 +41,9 @@ import com.mrleonardos.codeutils.internal.command.UtilsMaintenance;
 import com.mrleonardos.codeutils.internal.command.UtilsMessages;
 import com.mrleonardos.codeutils.internal.job.JobEngine;
 import com.mrleonardos.codeutils.internal.job.JobsFile;
+import com.mrleonardos.codeutils.internal.queue.ByPermission;
+import com.mrleonardos.codeutils.internal.queue.QueueFile;
+import com.mrleonardos.codeutils.internal.queue.QueueGate;
 import com.mrleonardos.codeutils.internal.restart.RestartFile;
 import com.mrleonardos.codeutils.internal.restart.RestartPlan;
 import com.mrleonardos.codeutils.internal.restart.RestartRunner;
@@ -68,6 +73,7 @@ public final class CodeUtilsMod {
     private final LoginDoor door = new LoginDoor();
     private final UtilsTexts texts = new GameTexts();
 
+    private ServerFacts facts;
     private ConfigService configs;
     private ConfigFile<UtilsSettings> settings;
     private ConfigFile<CommandRoots> roots;
@@ -75,11 +81,13 @@ public final class CodeUtilsMod {
     private ConfigFile<JobsFile> jobsFile;
     private ConfigFile<RestartFile> restartFile;
     private ConfigFile<CleanupFile> cleanupFile;
+    private ConfigFile<QueueFile> queueFile;
 
     private BroadcastEngine broadcasts;
     private JobEngine jobs;
     private CleanupEngine clean;
     private RestartPlan restart;
+    private QueueGate queue;
     private SpiNames names;
     private Ticker ticker;
     private LoginGate loginGate;
@@ -99,13 +107,15 @@ public final class CodeUtilsMod {
         jobsFile = files.jobs();
         restartFile = files.restart();
         cleanupFile = files.cleanup();
+        queueFile = files.queue();
 
         registry.addSink(BroadcastsFile.SINK_CHAT, new ChatSink());
         registry.addSink(BroadcastsFile.SINK_LOG, new LogSink(LOG));
         registry.addRunner(JobsFile.SERVER_RUNNER, new ServerCommandRunner());
+        registry.addPolicy(QueueFile.BY_PERMISSION, new ByPermission());
         CodeUtilsApi.install(new UtilsRuntimeImpl(registry, settings::get));
 
-        ServerFacts facts = new ServerFactsImpl();
+        facts = new ServerFactsImpl();
         Supplier<ZoneId> zone = this::zone;
         Conditions conditions = new Conditions(registry);
         UtilsBeat beat = new UtilsBeat(facts, zone);
@@ -157,6 +167,10 @@ public final class CodeUtilsMod {
             names.add(clean);
         }
 
+        if (queueFile != null) {
+            queue = new QueueGate(queueFile::get, registry, facts, LOG);
+        }
+
         ticker = new Ticker(CodeApi.scheduler(), clock, beat);
         commands();
     }
@@ -165,8 +179,8 @@ public final class CodeUtilsMod {
     public void postInit(FMLPostInitializationEvent event) {
         registry.freeze();
         names.resolve();
-        if (restart != null) {
-            loginGate = new LoginGate(door, texts);
+        if (restart != null || queue != null) {
+            loginGate = new LoginGate(door, queue, texts, clock);
             FMLCommonHandler.instance()
                 .bus()
                 .register(loginGate);
@@ -206,7 +220,8 @@ public final class CodeUtilsMod {
             .watch(broadcastsFile)
             .watch(jobsFile)
             .watch(restartFile)
-            .watch(cleanupFile);
+            .watch(cleanupFile)
+            .watch(queueFile);
         new UtilsCommands(
             roots::get,
             this::zone,
@@ -214,6 +229,7 @@ public final class CodeUtilsMod {
             jobs,
             clean,
             restart,
+            queue,
             arguments,
             new SenderSubjects(),
             maintenance,
@@ -236,6 +252,12 @@ public final class CodeUtilsMod {
         }
         if (restart != null) {
             restart.arm(now);
+        }
+        if (queue != null) {
+            queue.arm(
+                facts.online()
+                    .size(),
+                maxPlayers());
         }
     }
 
@@ -274,6 +296,9 @@ public final class CodeUtilsMod {
         if (restart != null) {
             live.add(Subsystems.RESTART);
         }
+        if (queue != null) {
+            live.add(Subsystems.QUEUE);
+        }
         LOG.info(
             "CodeUtils is up on server {} in zone {}, working subsystems: {}",
             configs.serverId(),
@@ -291,6 +316,13 @@ public final class CodeUtilsMod {
 
     private List<String> ruleNames() {
         return clean == null ? new ArrayList<>() : clean.names();
+    }
+
+    private int maxPlayers() {
+        MinecraftServer server = MinecraftServer.getServer();
+        return server == null || server.getConfigurationManager() == null ? 0
+            : server.getConfigurationManager()
+                .getMaxPlayers();
     }
 
     private int slowPassMillis() {

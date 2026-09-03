@@ -36,6 +36,8 @@ public final class UtilsMessages {
     public static final String QUEUE_ROW = "codeutils.queue.row";
     public static final String QUEUE_EMPTY = "codeutils.queue.empty";
     public static final String QUEUE_REFUSED = "codeutils.queue.refused";
+    public static final String QUEUE_FULL = "codeutils.queue.full";
+    public static final String QUEUE_SLOTS = "codeutils.queue.slots";
     public static final String QUEUE_TIER = "codeutils.queue.tier";
 
     public static final String ERROR_UNKNOWN_SET = "codeutils.error.unknown_set";

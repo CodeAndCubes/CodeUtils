@@ -22,6 +22,7 @@ import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile;
 import com.mrleonardos.codeutils.internal.clean.CleanupFile;
 import com.mrleonardos.codeutils.internal.command.CommandRoots;
 import com.mrleonardos.codeutils.internal.job.JobsFile;
+import com.mrleonardos.codeutils.internal.queue.QueueFile;
 import com.mrleonardos.codeutils.internal.restart.RestartFile;
 
 class SettingsLayoutTest {
@@ -152,6 +153,16 @@ class SettingsLayoutTest {
             names(RestartFile.Steps.class));
         assertEquals(new TreeSet<>(Arrays.asList("doorKey", "kickKey")), names(RestartFile.Messages.class));
         assertEquals(WhenBlock.class, fieldType(RestartFile.Schedule.class, "when"));
+    }
+
+    @Test
+    void theQueueFileHoldsSlotsAndTheQueueApart() {
+        assertEquals(new TreeSet<>(Arrays.asList("queue", "slots")), names(QueueFile.class));
+        assertEquals(new TreeSet<>(Arrays.asList("base", "tiers")), names(QueueFile.Slots.class));
+        assertEquals(new TreeSet<>(Arrays.asList("node", "slots")), names(QueueFile.Tier.class));
+        assertEquals(
+            new TreeSet<>(Arrays.asList("enabled", "holdSeconds", "policy", "retryHintSeconds", "ticketSeconds")),
+            names(QueueFile.Queue.class));
     }
 
     @Test

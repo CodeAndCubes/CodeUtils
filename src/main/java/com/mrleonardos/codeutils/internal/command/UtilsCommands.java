@@ -17,6 +17,7 @@ import com.mrleonardos.codecore.api.command.CommandService;
 import com.mrleonardos.codecore.api.util.Durations;
 import com.mrleonardos.codeutils.api.Subsystems;
 import com.mrleonardos.codeutils.api.clean.CleanupReport;
+import com.mrleonardos.codeutils.api.queue.QueueTicket;
 import com.mrleonardos.codeutils.api.restart.RestartReason;
 import com.mrleonardos.codeutils.api.run.RunOutcome;
 import com.mrleonardos.codeutils.internal.Clocks;
@@ -25,6 +26,8 @@ import com.mrleonardos.codeutils.internal.broadcast.BroadcastEngine;
 import com.mrleonardos.codeutils.internal.broadcast.Sent;
 import com.mrleonardos.codeutils.internal.clean.CleanupEngine;
 import com.mrleonardos.codeutils.internal.job.JobEngine;
+import com.mrleonardos.codeutils.internal.queue.QueueGate;
+import com.mrleonardos.codeutils.internal.queue.SlotRules;
 import com.mrleonardos.codeutils.internal.restart.RestartPlan;
 
 public final class UtilsCommands {
@@ -46,6 +49,7 @@ public final class UtilsCommands {
     private final JobEngine jobs;
     private final CleanupEngine clean;
     private final RestartPlan restart;
+    private final QueueGate queue;
     private final UtilsArguments arguments;
     private final UtilsSubjects subjects;
     private final UtilsMaintenance maintenance;
@@ -53,14 +57,15 @@ public final class UtilsCommands {
     private final Logger log;
 
     public UtilsCommands(Supplier<CommandRoots> roots, Supplier<ZoneId> zone, BroadcastEngine broadcasts,
-        JobEngine jobs, CleanupEngine clean, RestartPlan restart, UtilsArguments arguments, UtilsSubjects subjects,
-        UtilsMaintenance maintenance, LongSupplier clock, Logger log) {
+        JobEngine jobs, CleanupEngine clean, RestartPlan restart, QueueGate queue, UtilsArguments arguments,
+        UtilsSubjects subjects, UtilsMaintenance maintenance, LongSupplier clock, Logger log) {
         this.roots = roots;
         this.zone = zone;
         this.broadcasts = broadcasts;
         this.jobs = jobs;
         this.clean = clean;
         this.restart = restart;
+        this.queue = queue;
         this.arguments = arguments;
         this.subjects = subjects;
         this.maintenance = maintenance;
@@ -132,6 +137,12 @@ public final class UtilsCommands {
         if (restart != null) {
             root.child(restartNode(CommandRoots.RESTART));
         }
+        if (queue != null) {
+            root.child(
+                CommandNode.literal("queue")
+                    .permission(Nodes.ADMIN_QUEUE)
+                    .executes(this::queue));
+        }
         return root;
     }
 
@@ -149,6 +160,7 @@ public final class UtilsCommands {
         line(context, Subsystems.JOBS, jobs == null ? null : String.valueOf(jobs.workingJobs()));
         line(context, Subsystems.CLEANUP, clean == null ? null : String.valueOf(clean.workingRules()));
         line(context, Subsystems.RESTART, restart == null ? null : restartLine());
+        line(context, Subsystems.QUEUE, queue == null ? null : String.valueOf(queue.online()));
         if (jobs != null) {
             long soonest = soonest();
             context.reply(UtilsMessages.STATUS_NEXT, soonest == 0L ? NEVER : moment(soonest));
@@ -230,6 +242,29 @@ public final class UtilsCommands {
             return;
         }
         context.replyError(UtilsMessages.JOBS_FAILED, name, outcome.reason());
+    }
+
+    private void queue(CommandContext context) {
+        SlotRules rules = queue.rules();
+        context.reply(UtilsMessages.QUEUE_HEADER);
+        context.reply(UtilsMessages.QUEUE_SLOTS, Integer.valueOf(queue.online()), Integer.valueOf(rules.base()));
+        for (String tier : rules.names()) {
+            context.reply(UtilsMessages.QUEUE_TIER, tier, Integer.valueOf(rules.slotsOf(tier)));
+        }
+        List<QueueTicket> waiting = queue.queue(clock.getAsLong());
+        if (waiting.isEmpty()) {
+            context.reply(UtilsMessages.QUEUE_EMPTY);
+            return;
+        }
+        for (QueueTicket ticket : waiting) {
+            context.reply(
+                UtilsMessages.QUEUE_ROW,
+                Integer.valueOf(ticket.place()),
+                ticket.name(),
+                ticket.tier()
+                    .isEmpty() ? NEVER : ticket.tier(),
+                moment(ticket.since()));
+        }
     }
 
     private void clean(CommandContext context) {

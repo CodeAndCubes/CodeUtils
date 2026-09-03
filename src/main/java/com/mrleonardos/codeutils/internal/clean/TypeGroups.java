@@ -19,14 +19,12 @@ public final class TypeGroups {
 
     private TypeGroups() {}
 
-    /** Слова групп: шесть родов и {@link #ALL}. */
     public static List<String> words() {
         List<String> all = new ArrayList<>(BY_WORD.keySet());
         all.add(ALL);
         return Collections.unmodifiableList(all);
     }
 
-    /** Род по слову группы; {@code null} у незнакомого слова и у {@link #ALL}. */
     public static EntityKind byWord(String written) {
         return BY_WORD.get(word(written));
     }

@@ -40,6 +40,10 @@ import com.mrleonardos.codeutils.internal.job.JobEngine;
 import com.mrleonardos.codeutils.internal.job.JobsFile;
 import com.mrleonardos.codeutils.internal.job.JobsFile.JobBlock;
 import com.mrleonardos.codeutils.internal.job.RecordingRunner;
+import com.mrleonardos.codeutils.internal.queue.ByPermission;
+import com.mrleonardos.codeutils.internal.queue.FakeRights;
+import com.mrleonardos.codeutils.internal.queue.QueueFile;
+import com.mrleonardos.codeutils.internal.queue.QueueGate;
 import com.mrleonardos.codeutils.internal.restart.FakeShutdown;
 import com.mrleonardos.codeutils.internal.restart.RestartFile;
 import com.mrleonardos.codeutils.internal.restart.RestartPlan;
@@ -60,13 +64,17 @@ class UtilsCommandsTest {
     private final RestartFile restartFile = new RestartFile();
     private final CleanupFile cleanupFile = new CleanupFile();
     private final FakeSweep sweep = new FakeSweep();
+    private final QueueFile queueFile = new QueueFile();
+    private final FakeRights rights = new FakeRights();
     private final CommandRoots roots = new CommandRoots();
 
     private boolean reloaded;
     private RestartPlan restartPlan;
+    private QueueGate queueGate;
 
     UtilsCommandsTest() {
         registry.addSink(BroadcastsFile.SINK_CHAT, sink);
+        registry.addPolicy(QueueFile.BY_PERMISSION, new ByPermission());
         registry.addRunner(JobsFile.SERVER_RUNNER, runner);
         broadcastsFile.sets = new LinkedHashMap<>();
         broadcastsFile.sets.put("tips", set("первое", "второе"));
@@ -142,7 +150,7 @@ class UtilsCommandsTest {
 
     @Test
     void statusNamesEverySubsystemAndTheNearestJobMoment() {
-        TestCommandService commands = register(true, true, true, true);
+        TestCommandService commands = register(true, true, true, true, true);
         TestCommandContext context = new TestCommandContext();
 
         run(commands, "status", context);
@@ -150,6 +158,7 @@ class UtilsCommandsTest {
         assertEquals(
             Arrays.asList(
                 UtilsMessages.STATUS_HEADER,
+                UtilsMessages.STATUS_ON,
                 UtilsMessages.STATUS_ON,
                 UtilsMessages.STATUS_ON,
                 UtilsMessages.STATUS_ON,
@@ -171,6 +180,7 @@ class UtilsCommandsTest {
                 UtilsMessages.STATUS_HEADER,
                 UtilsMessages.STATUS_OFF,
                 UtilsMessages.STATUS_ON,
+                UtilsMessages.STATUS_OFF,
                 UtilsMessages.STATUS_OFF,
                 UtilsMessages.STATUS_OFF,
                 UtilsMessages.STATUS_NEXT),
@@ -484,20 +494,67 @@ class UtilsCommandsTest {
         assertEquals(UtilsMessages.ERROR_SUBSYSTEM_OFF, off.last().key, "заводское правило mobs выключено");
     }
 
+    @Test
+    void theQueueBranchShowsTheTiersTheCapsAndWhoIsWaiting() {
+        TestCommandService commands = register(true, true, false, false, true);
+        TestCommandContext context = new TestCommandContext();
+
+        run(commands, "queue", context);
+
+        assertEquals(
+            Arrays.asList(
+                UtilsMessages.QUEUE_HEADER,
+                UtilsMessages.QUEUE_SLOTS,
+                UtilsMessages.QUEUE_TIER,
+                UtilsMessages.QUEUE_TIER,
+                UtilsMessages.QUEUE_EMPTY),
+            context.keys(),
+            "шапка, слоты, две ступени и пустая очередь");
+    }
+
+    @Test
+    void theQueueBranchListsEveryTicketWithItsNumber() {
+        TestCommandService commands = register(true, true, false, false, true);
+        queueGate.decide(java.util.UUID.nameUUIDFromBytes("Plain".getBytes()), "Plain", at("2026-09-03T03:00:00"));
+        TestCommandContext context = new TestCommandContext();
+
+        run(commands, "queue", context);
+
+        assertEquals(UtilsMessages.QUEUE_ROW, context.last().key);
+        assertEquals(Integer.valueOf(1), context.last().arguments.get(0));
+        assertEquals("Plain", context.last().arguments.get(1));
+    }
+
+    @Test
+    void theQueueBranchAppearsOnlyWithItsSubsystem() {
+        assertFalse(
+            TestCommandService.childNames(register(true, true, false, false, false).root(CommandRoots.CODEUTILS))
+                .contains("queue"));
+        assertTrue(
+            TestCommandService.childNames(register(true, true, false, false, true).root(CommandRoots.CODEUTILS))
+                .contains("queue"));
+    }
+
     private TestCommandService register(boolean withBroadcasts, boolean withJobs) {
         return register(withBroadcasts, withJobs, false, false);
     }
 
     private TestCommandService register(boolean withBroadcasts, boolean withJobs, boolean withRestart) {
-        return register(withBroadcasts, withJobs, withRestart, false);
+        return register(withBroadcasts, withJobs, withRestart, false, false);
     }
 
     private TestCommandService register(boolean withBroadcasts, boolean withJobs, boolean withRestart,
         boolean withClean) {
+        return register(withBroadcasts, withJobs, withRestart, withClean, false);
+    }
+
+    private TestCommandService register(boolean withBroadcasts, boolean withJobs, boolean withRestart,
+        boolean withClean, boolean withQueue) {
         BroadcastEngine broadcasts = withBroadcasts ? broadcasts() : null;
         JobEngine jobs = withJobs ? jobs() : null;
         RestartPlan restart = withRestart ? restart() : null;
         CleanupEngine clean = withClean ? clean() : null;
+        QueueGate queue = withQueue ? queue() : null;
         long now = at("2026-09-03T03:00:00");
         if (broadcasts != null) {
             broadcasts.arm(now);
@@ -521,12 +578,19 @@ class UtilsCommandsTest {
             jobs,
             clean,
             restart,
+            queue,
             arguments,
             context -> "console",
             maintenance,
             () -> now,
             LOG).register(commands);
         return commands;
+    }
+
+    private QueueGate queue() {
+        queueGate = new QueueGate(() -> queueFile, registry, rights, LOG);
+        queueGate.arm(60, 200);
+        return queueGate;
     }
 
     private CleanupEngine clean() {

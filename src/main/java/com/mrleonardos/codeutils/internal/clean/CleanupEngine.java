@@ -31,7 +31,6 @@ import com.mrleonardos.codeutils.internal.command.UtilsMessages;
 
 public final class CleanupEngine implements Subsystem, SpiNames.Source {
 
-    /** Правило с одним порогом и без расписания считает по такту раз в столько секунд. */
     public static final int THRESHOLD_SECONDS = 30;
 
     private static final long NANOS_IN_MILLI = 1_000_000L;
@@ -137,13 +136,11 @@ public final class CleanupEngine implements Subsystem, SpiNames.Source {
         }
     }
 
-    /** Посчитать подходящие сущности и ничего не снимать. */
     public CleanupReport count(String name) {
         Live rule = live.get(name);
         return rule == null ? null : sweep(rule, false);
     }
 
-    /** Пройти правило прямо сейчас, вместе с удалением. */
     public CleanupReport clean(String name) {
         Live rule = live.get(name);
         return rule == null ? null : sweep(rule, true);
@@ -165,7 +162,6 @@ public final class CleanupEngine implements Subsystem, SpiNames.Source {
         return live.size();
     }
 
-    /** Ближайший проход правила; ноль, если правило ходит только руками. */
     public long nextPassOf(String name) {
         Live rule = live.get(name);
         return rule == null ? 0L : rule.deadline;
