@@ -85,6 +85,16 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
     }
 
     @Override
+    public Map<String, String> runners() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public List<String> guards() {
+        return Collections.emptyList();
+    }
+
+    @Override
     public List<String> conditions() {
         RestartFile.Schedule written = file.get().schedule;
         if (!written.enabled || written.when == null || written.when.custom == null) {

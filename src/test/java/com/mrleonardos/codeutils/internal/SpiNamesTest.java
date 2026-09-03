@@ -81,6 +81,38 @@ class SpiNamesTest {
                 .put("чужое", "чужое"));
     }
 
+    @Test
+    void anUnknownRunnerIsNamedByTheFrameworkAndNotByTheSubsystem() {
+        UtilsRegistry registry = new UtilsRegistry();
+        registry.addRunner("server", ticket -> null);
+        SpiNames names = new SpiNames(registry, LOG);
+        names.add(
+            source(
+                Collections.emptyMap(),
+                sinks("utils-jobs.toml job save", "serverr", "utils-jobs.toml job clean", "server"),
+                Collections.emptyList(),
+                Collections.emptyList()));
+
+        assertEquals(sinks("utils-jobs.toml job save", "serverr"), names.unknownRunners());
+    }
+
+    @Test
+    void anUnknownGuardIsNamedOnceNoMatterHowManyRulesTookItOff() {
+        UtilsRegistry registry = new UtilsRegistry();
+        registry.addGuard("pets", entity -> true);
+        SpiNames names = new SpiNames(registry, LOG);
+        names.add(
+            source(
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                Arrays.asList("pets", "petz"),
+                Collections.emptyList()));
+        names.add(
+            source(Collections.emptyMap(), Collections.emptyMap(), Arrays.asList("petz"), Collections.emptyList()));
+
+        assertEquals(Arrays.asList("petz"), names.unknownGuards());
+    }
+
     private static Map<String, String> sinks(String... pairs) {
         Map<String, String> named = new LinkedHashMap<>();
         for (int index = 0; index < pairs.length; index += 2) {
@@ -90,7 +122,11 @@ class SpiNamesTest {
     }
 
     private static SpiNames.Source source(Map<String, String> sinks, String... conditions) {
-        List<String> named = Arrays.asList(conditions);
+        return source(sinks, Collections.emptyMap(), Collections.emptyList(), Arrays.asList(conditions));
+    }
+
+    private static SpiNames.Source source(Map<String, String> sinks, Map<String, String> runners, List<String> guards,
+        List<String> conditions) {
         return new SpiNames.Source() {
 
             @Override
@@ -99,8 +135,18 @@ class SpiNamesTest {
             }
 
             @Override
+            public Map<String, String> runners() {
+                return runners;
+            }
+
+            @Override
+            public List<String> guards() {
+                return guards;
+            }
+
+            @Override
             public List<String> conditions() {
-                return named;
+                return conditions;
             }
         };
     }

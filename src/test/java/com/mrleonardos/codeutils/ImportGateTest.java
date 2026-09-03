@@ -16,9 +16,12 @@ class ImportGateTest {
     private static final String[] GATED = { "com/mrleonardos/codeutils/api", "com/mrleonardos/codeutils/internal" };
 
     /**
-     * Кроме типов игры сюда входят два слоя платформы: хелперы ядра и свой собственный. Ссылка на свой
-     * {@code platform} из {@code internal} сборкой не ловится вовсе, а на разрезанном сервере это ровно
-     * та ошибка, ради которой затевались узкие швы.
+     * Кроме типов игры сюда входят два слоя платформы: хелперы ядра и свой собственный. Для {@code api}
+     * довод жёсткий: он уезжает отдельным артефактом, {@code internal} и {@code platform} в него не
+     * попадают, и класс api со ссылкой на любой из них соберётся здесь, а упадёт у того, кто взял только
+     * api-джар. Для {@code internal} довод мягче, оба лежат в одном jar: там префикс держит границу швов,
+     * и держать её больше некому, потому что разрезания сторон у мода нет ({@code client = false}) и
+     * {@code SideVerifier} из CodeSides не срабатывает вовсе.
      */
     private static final String[] FORBIDDEN = { "net/minecraft", "net/minecraftforge", "cpw/mods", "io/netty",
         "org/lwjgl", "com/mojang", "com/mrleonardos/codecore/platform", "com/mrleonardos/codeutils/platform" };

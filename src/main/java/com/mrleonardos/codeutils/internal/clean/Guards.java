@@ -41,15 +41,7 @@ public final class Guards {
     }
 
     public static Guards of(List<String> ignoreGuards, UtilsRegistry registry) {
-        Set<String> ignored = new LinkedHashSet<>();
-        for (String written : ignoreGuards == null ? new ArrayList<String>() : ignoreGuards) {
-            if (written != null && !written.trim()
-                .isEmpty()) {
-                ignored.add(
-                    written.trim()
-                        .toLowerCase(Locale.ROOT));
-            }
-        }
+        Set<String> ignored = new LinkedHashSet<>(names(ignoreGuards));
         Map<String, CleanupGuard> foreign = new LinkedHashMap<>();
         for (Map.Entry<String, CleanupGuard> named : registry.guards()
             .entrySet()) {
@@ -62,15 +54,27 @@ public final class Guards {
         return new Guards(ignored, foreign);
     }
 
-    public List<String> unknown(UtilsRegistry registry) {
-        List<String> missing = new ArrayList<>();
-        for (String name : ignored) {
-            if (!BUILT_IN.contains(name) && !registry.guard(name)
-                .isPresent()) {
-                missing.add(name);
+    public static List<String> foreignNames(List<String> ignoreGuards) {
+        List<String> named = new ArrayList<>();
+        for (String name : names(ignoreGuards)) {
+            if (!BUILT_IN.contains(name)) {
+                named.add(name);
             }
         }
-        return missing;
+        return named;
+    }
+
+    private static List<String> names(List<String> written) {
+        List<String> cleaned = new ArrayList<>();
+        for (String name : written == null ? new ArrayList<String>() : written) {
+            if (name != null && !name.trim()
+                .isEmpty()) {
+                cleaned.add(
+                    name.trim()
+                        .toLowerCase(Locale.ROOT));
+            }
+        }
+        return cleaned;
     }
 
     public boolean ignores(String guard) {

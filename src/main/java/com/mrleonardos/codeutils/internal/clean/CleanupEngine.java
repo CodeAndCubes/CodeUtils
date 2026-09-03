@@ -71,13 +71,6 @@ public final class CleanupEngine implements Subsystem, SpiNames.Source {
                 log.warn("Cleanup rule {} holds no types, it stays quiet", name);
                 continue;
             }
-            for (String guard : rule.guards.unknown(registry)) {
-                log.warn(
-                    "Cleanup rule {} takes off the guard {}, and there is no guard of that name, "
-                        + "the line does nothing",
-                    name,
-                    guard);
-            }
             int seconds = every(block);
             rule.deadline = seconds > 0 ? now + seconds * Clocks.MILLIS : 0L;
             if (seconds == 0) {
@@ -98,6 +91,22 @@ public final class CleanupEngine implements Subsystem, SpiNames.Source {
             RuleBlock block = entry.getValue();
             if (block.enabled && !block.warnSeconds.isEmpty()) {
                 named.put(where(entry.getKey()), word(block.warnSink));
+            }
+        }
+        return named;
+    }
+
+    @Override
+    public Map<String, String> runners() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public List<String> guards() {
+        List<String> named = new ArrayList<>();
+        for (RuleBlock block : file.get().rules.values()) {
+            if (block.enabled) {
+                named.addAll(Guards.foreignNames(block.ignoreGuards));
             }
         }
         return named;

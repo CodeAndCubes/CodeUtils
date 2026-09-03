@@ -68,10 +68,14 @@ class GuardsTest {
     }
 
     @Test
-    void aNameInIgnoreGuardsThatBelongsToNoGuardIsNamedBack() {
-        Guards guards = Guards.of(Arrays.asList("named", "petz"), registry);
-
-        assertEquals(Arrays.asList("petz"), guards.unknown(registry));
+    void onlyTheNamesThatAreNotBuiltInGoToTheFrameworkForResolving() {
+        assertEquals(
+            Arrays.asList("petz"),
+            Guards.foreignNames(Arrays.asList("named", "petz")),
+            "восемь встроенных защит каркасу разрешать нечего");
+        assertTrue(
+            Guards.foreignNames(null)
+                .isEmpty());
     }
 
     @Test
@@ -81,7 +85,7 @@ class GuardsTest {
         assertTrue(guards.ignores(Guards.NAMED));
         assertTrue(guards.ignores(Guards.TAMED));
         assertTrue(
-            guards.unknown(registry)
+            Guards.foreignNames(Arrays.asList("NAMED", " tamed "))
                 .isEmpty());
     }
 }

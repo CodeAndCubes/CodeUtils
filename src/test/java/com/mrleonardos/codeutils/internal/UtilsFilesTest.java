@@ -132,19 +132,31 @@ class UtilsFilesTest {
     }
 
     @Test
-    void aLineOfHisOwnAtTheEndOfTheFileStaysWhereTheManPutIt(@TempDir Path root) {
+    void aLineOverAFieldOfTheModYieldsToItsDescriptionAndOverHisOwnKeyStays(@TempDir Path root) {
         Path config = root.resolve("config");
         Path settings = TestConfigs.utils(config)
             .resolve(SETTINGS_FILE);
-        UtilsFiles.open(TestConfigs.of(config));
-        TestConfigs.write(settings, (TestConfigs.read(settings) + "\n# моя строка\n").split("\n"));
+        TestConfigs.write(
+            settings,
+            "schemaVersion = 1",
+            "# моя строка",
+            "timezone = \"Europe/Moscow\"",
+            "# моя над чужим",
+            "myOwn = 1");
 
-        UtilsFiles.open(TestConfigs.of(config));
+        UtilsFiles files = UtilsFiles.open(TestConfigs.of(config));
+        String text = TestConfigs.read(settings);
 
-        assertTrue(
-            TestConfigs.read(settings)
-                .contains("моя строка"),
-            "своя строка человека в полном файле остаётся на месте");
+        assertEquals(
+            ZoneId.of("Europe/Moscow"),
+            files.settings()
+                .get()
+                .zone(),
+            "значение человека на месте");
+        assertTrue(text.contains("Часовой пояс всего"), () -> "описание поля мода на месте:\n" + text);
+        assertFalse(text.contains("# моя строка"), () -> "строка над полем мода уступила описанию:\n" + text);
+        assertTrue(text.contains("myOwn = 1"), () -> "чужой ключ остаётся:\n" + text);
+        assertTrue(text.contains("# моя над чужим"), () -> "строка над своим ключом остаётся:\n" + text);
     }
 
     @Test

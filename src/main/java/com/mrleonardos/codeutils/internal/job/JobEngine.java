@@ -66,10 +66,6 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
             CommandRunner runner = registry.runner(word(block.runner))
                 .orElse(null);
             if (runner == null) {
-                log.warn(
-                    "Job {} names the runner {}, and no mod registered it, the job stays quiet",
-                    name,
-                    block.runner);
                 continue;
             }
             Live job = new Live(name, block, runner);
@@ -86,6 +82,24 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
     @Override
     public Map<String, String> sinks() {
         return Collections.emptyMap();
+    }
+
+    @Override
+    public Map<String, String> runners() {
+        Map<String, String> named = new LinkedHashMap<>();
+        for (Map.Entry<String, JobBlock> entry : file.get().jobs.entrySet()) {
+            JobBlock block = entry.getValue();
+            if (block.enabled && !block.command.trim()
+                .isEmpty()) {
+                named.put(where(entry.getKey()), word(block.runner));
+            }
+        }
+        return named;
+    }
+
+    @Override
+    public List<String> guards() {
+        return Collections.emptyList();
     }
 
     @Override

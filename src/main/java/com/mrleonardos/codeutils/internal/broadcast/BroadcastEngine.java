@@ -1,6 +1,7 @@
 package com.mrleonardos.codeutils.internal.broadcast;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -82,6 +83,16 @@ public final class BroadcastEngine implements Subsystem, SpiNames.Source {
             }
         }
         return named;
+    }
+
+    @Override
+    public Map<String, String> runners() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public List<String> guards() {
+        return Collections.emptyList();
     }
 
     @Override
