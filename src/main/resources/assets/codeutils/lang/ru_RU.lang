@@ -1,5 +1,5 @@
 codeutils.command.usage.codeutils=/codeutils <status|reload|broadcast|jobs>
-codeutils.command.usage.restart=/restart <секунды|ЧЧ:ММ|cancel|now>
+codeutils.command.usage.restart=/restart <срок|ЧЧ:ММ|cancel|now>
 codeutils.command.usage.broadcast=/broadcast <текст>
 
 codeutils.status.header=CodeUtils: что сейчас работает

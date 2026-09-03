@@ -1,6 +1,7 @@
 package com.mrleonardos.codeutils.internal.command;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
@@ -24,6 +25,10 @@ public final class UtilsArguments {
 
     public ArgumentType<String> jobName() {
         return named(jobs);
+    }
+
+    public ArgumentType<String> restartWhen() {
+        return named(() -> Arrays.asList("cancel", "now"));
     }
 
     private static ArgumentType<String> named(Supplier<List<String>> names) {

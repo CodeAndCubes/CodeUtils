@@ -1,5 +1,5 @@
 codeutils.command.usage.codeutils=/codeutils <status|reload|broadcast|jobs>
-codeutils.command.usage.restart=/restart <seconds|HH:MM|cancel|now>
+codeutils.command.usage.restart=/restart <duration|HH:MM|cancel|now>
 codeutils.command.usage.broadcast=/broadcast <text>
 
 codeutils.status.header=CodeUtils: what is running

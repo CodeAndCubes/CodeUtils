@@ -9,8 +9,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.mrleonardos.codecore.api.util.Scheduler;
-
 class TickerTest {
 
     @Test
@@ -113,66 +111,5 @@ class TickerTest {
     private static void assertArray(long[] expected, long[] actual) {
         assertEquals(expected[0], actual[0], "начало окна");
         assertEquals(expected[1], actual[1], "конец окна");
-    }
-
-    static final class FakeClock implements java.util.function.LongSupplier {
-
-        private long millis;
-
-        FakeClock(long millis) {
-            this.millis = millis;
-        }
-
-        void at(long value) {
-            millis = value;
-        }
-
-        @Override
-        public long getAsLong() {
-            return millis;
-        }
-    }
-
-    static final class FakeScheduler implements Scheduler {
-
-        private final List<Runnable> queue = new ArrayList<>();
-        private int lastDelay = -1;
-
-        @Override
-        public void onMainThread(Runnable task) {
-            queue.add(task);
-        }
-
-        @Override
-        public void afterTicks(int ticks, Runnable task) {
-            lastDelay = ticks;
-            queue.add(task);
-        }
-
-        int lastDelay() {
-            return lastDelay;
-        }
-
-        int pending() {
-            return queue.size();
-        }
-
-        /** Выполнить последний поставленный вызов: так очередь не копит хвосты прежних поколений. */
-        void runNext() {
-            if (queue.isEmpty()) {
-                return;
-            }
-            queue.remove(queue.size() - 1)
-                .run();
-        }
-
-        /** Выполнить самый старый вызов очереди. */
-        void runFirst() {
-            if (queue.isEmpty()) {
-                return;
-            }
-            queue.remove(0)
-                .run();
-        }
     }
 }

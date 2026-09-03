@@ -18,6 +18,7 @@ import com.mrleonardos.codeutils.Tags;
 import com.mrleonardos.codeutils.api.CodeUtilsApi;
 import com.mrleonardos.codeutils.api.Subsystems;
 import com.mrleonardos.codeutils.api.UtilsRegistry;
+import com.mrleonardos.codeutils.internal.Announcer;
 import com.mrleonardos.codeutils.internal.Conditions;
 import com.mrleonardos.codeutils.internal.ServerFacts;
 import com.mrleonardos.codeutils.internal.SpiNames;
@@ -25,6 +26,7 @@ import com.mrleonardos.codeutils.internal.Ticker;
 import com.mrleonardos.codeutils.internal.UtilsBeat;
 import com.mrleonardos.codeutils.internal.UtilsFiles;
 import com.mrleonardos.codeutils.internal.UtilsSettings;
+import com.mrleonardos.codeutils.internal.UtilsTexts;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastEngine;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile;
 import com.mrleonardos.codeutils.internal.broadcast.LogSink;
@@ -32,9 +34,15 @@ import com.mrleonardos.codeutils.internal.command.CommandRoots;
 import com.mrleonardos.codeutils.internal.command.UtilsArguments;
 import com.mrleonardos.codeutils.internal.command.UtilsCommands;
 import com.mrleonardos.codeutils.internal.command.UtilsMaintenance;
+import com.mrleonardos.codeutils.internal.command.UtilsMessages;
 import com.mrleonardos.codeutils.internal.job.JobEngine;
 import com.mrleonardos.codeutils.internal.job.JobsFile;
+import com.mrleonardos.codeutils.internal.restart.RestartFile;
+import com.mrleonardos.codeutils.internal.restart.RestartPlan;
+import com.mrleonardos.codeutils.internal.restart.RestartRunner;
+import com.mrleonardos.codeutils.internal.restart.Shutdown;
 
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
@@ -55,16 +63,22 @@ public final class CodeUtilsMod {
     private final UtilsRegistry registry = new UtilsRegistry();
     private final LongSupplier clock = System::currentTimeMillis;
 
+    private final LoginDoor door = new LoginDoor();
+    private final UtilsTexts texts = new GameTexts();
+
     private ConfigService configs;
     private ConfigFile<UtilsSettings> settings;
     private ConfigFile<CommandRoots> roots;
     private ConfigFile<BroadcastsFile> broadcastsFile;
     private ConfigFile<JobsFile> jobsFile;
+    private ConfigFile<RestartFile> restartFile;
 
     private BroadcastEngine broadcasts;
     private JobEngine jobs;
+    private RestartPlan restart;
     private SpiNames names;
     private Ticker ticker;
+    private LoginGate loginGate;
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
@@ -79,6 +93,7 @@ public final class CodeUtilsMod {
         roots = files.roots();
         broadcastsFile = files.broadcasts();
         jobsFile = files.jobs();
+        restartFile = files.restart();
 
         registry.addSink(BroadcastsFile.SINK_CHAT, new ChatSink());
         registry.addSink(BroadcastsFile.SINK_LOG, new LogSink(LOG));
@@ -91,6 +106,28 @@ public final class CodeUtilsMod {
         UtilsBeat beat = new UtilsBeat(facts, zone);
         names = new SpiNames(registry, LOG);
 
+        if (restartFile != null) {
+            Shutdown shutdown = new ShutdownImpl(door, texts, LOG);
+            RestartRunner stopping = new RestartRunner(
+                restartFile::get,
+                registry,
+                shutdown,
+                CodeApi.scheduler(),
+                this::stopTicker,
+                LOG);
+            restart = new RestartPlan(
+                restartFile::get,
+                registry,
+                conditions,
+                new Announcer(facts, texts),
+                shutdown,
+                stopping,
+                zone,
+                LOG);
+            beat.add(restart)
+                .pause(stopping::stopping);
+            names.add(restart);
+        }
         if (broadcastsFile != null) {
             broadcasts = new BroadcastEngine(broadcastsFile::get, registry, conditions, facts, new Random(), LOG);
             beat.add(broadcasts);
@@ -110,25 +147,36 @@ public final class CodeUtilsMod {
     public void postInit(FMLPostInitializationEvent event) {
         registry.freeze();
         names.resolve();
+        if (restart != null) {
+            loginGate = new LoginGate(door, texts);
+            FMLCommonHandler.instance()
+                .bus()
+                .register(loginGate);
+        }
     }
 
     @Mod.EventHandler
     public void serverStarted(FMLServerStartedEvent event) {
-        long now = clock.getAsLong();
         settings.get()
             .zone(LOG);
-        if (broadcasts != null) {
-            broadcasts.arm(now);
-        }
-        if (jobs != null) {
-            jobs.arm(now);
-        }
+        rearm();
         ticker.start();
         summary();
     }
 
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
+        stopTicker();
+        door.close(restartFile == null ? UtilsMessages.RESTART_DOOR : restartFile.get().messages.doorKey);
+        if (loginGate != null) {
+            FMLCommonHandler.instance()
+                .bus()
+                .unregister(loginGate);
+            loginGate = null;
+        }
+    }
+
+    private void stopTicker() {
         if (ticker != null) {
             ticker.stop();
         }
@@ -138,12 +186,14 @@ public final class CodeUtilsMod {
         UtilsArguments arguments = new UtilsArguments(this::setNames, this::jobNames);
         UtilsMaintenance maintenance = new UtilsMaintenance(this::rearm, LOG).watch(settings)
             .watch(broadcastsFile)
-            .watch(jobsFile);
+            .watch(jobsFile)
+            .watch(restartFile);
         new UtilsCommands(
             roots::get,
             this::zone,
             broadcasts,
             jobs,
+            restart,
             arguments,
             new SenderSubjects(),
             maintenance,
@@ -160,6 +210,9 @@ public final class CodeUtilsMod {
         }
         if (jobs != null) {
             jobs.arm(now);
+        }
+        if (restart != null) {
+            restart.arm(now);
         }
     }
 
@@ -191,6 +244,9 @@ public final class CodeUtilsMod {
         }
         if (jobs != null) {
             live.add(Subsystems.JOBS + " (" + jobs.workingJobs() + ")");
+        }
+        if (restart != null) {
+            live.add(Subsystems.RESTART);
         }
         LOG.info(
             "CodeUtils is up on server {} in zone {}, working subsystems: {}",

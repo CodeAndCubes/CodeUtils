@@ -20,9 +20,12 @@ import org.junit.jupiter.api.Test;
 
 import com.mrleonardos.codecore.api.command.CommandNode;
 import com.mrleonardos.codeutils.api.UtilsRegistry;
+import com.mrleonardos.codeutils.internal.Announcer;
 import com.mrleonardos.codeutils.internal.Clocks;
 import com.mrleonardos.codeutils.internal.Conditions;
 import com.mrleonardos.codeutils.internal.FakeFacts;
+import com.mrleonardos.codeutils.internal.FakeScheduler;
+import com.mrleonardos.codeutils.internal.FakeTexts;
 import com.mrleonardos.codeutils.internal.WhenBlock;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastEngine;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile;
@@ -33,6 +36,10 @@ import com.mrleonardos.codeutils.internal.job.JobEngine;
 import com.mrleonardos.codeutils.internal.job.JobsFile;
 import com.mrleonardos.codeutils.internal.job.JobsFile.JobBlock;
 import com.mrleonardos.codeutils.internal.job.RecordingRunner;
+import com.mrleonardos.codeutils.internal.restart.FakeShutdown;
+import com.mrleonardos.codeutils.internal.restart.RestartFile;
+import com.mrleonardos.codeutils.internal.restart.RestartPlan;
+import com.mrleonardos.codeutils.internal.restart.RestartRunner;
 
 class UtilsCommandsTest {
 
@@ -46,9 +53,11 @@ class UtilsCommandsTest {
     private final FakeFacts facts = new FakeFacts();
     private final BroadcastsFile broadcastsFile = new BroadcastsFile();
     private final JobsFile jobsFile = new JobsFile();
+    private final RestartFile restartFile = new RestartFile();
     private final CommandRoots roots = new CommandRoots();
 
     private boolean reloaded;
+    private RestartPlan restartPlan;
 
     UtilsCommandsTest() {
         registry.addSink(BroadcastsFile.SINK_CHAT, sink);
@@ -127,7 +136,7 @@ class UtilsCommandsTest {
 
     @Test
     void statusNamesEverySubsystemAndTheNearestJobMoment() {
-        TestCommandService commands = register(true, true);
+        TestCommandService commands = register(true, true, true);
         TestCommandContext context = new TestCommandContext();
 
         run(commands, "status", context);
@@ -135,6 +144,7 @@ class UtilsCommandsTest {
         assertEquals(
             Arrays.asList(
                 UtilsMessages.STATUS_HEADER,
+                UtilsMessages.STATUS_ON,
                 UtilsMessages.STATUS_ON,
                 UtilsMessages.STATUS_ON,
                 UtilsMessages.STATUS_NEXT),
@@ -154,8 +164,10 @@ class UtilsCommandsTest {
                 UtilsMessages.STATUS_HEADER,
                 UtilsMessages.STATUS_OFF,
                 UtilsMessages.STATUS_ON,
+                UtilsMessages.STATUS_OFF,
                 UtilsMessages.STATUS_NEXT),
-            context.keys());
+            context.keys(),
+            "выключенная подсистема получает свою строку со словом off");
     }
 
     @Test
@@ -287,9 +299,121 @@ class UtilsCommandsTest {
                 .suggestions(null, "sa"));
     }
 
+    @Test
+    void theRestartRootIsItsOwnRootAndABranchOfCodeutils() {
+        TestCommandService commands = register(true, true, true);
+
+        assertEquals(
+            Arrays.asList(CommandRoots.CODEUTILS, CommandRoots.RESTART, CommandRoots.BROADCAST),
+            commands.names());
+        assertEquals(
+            Arrays.asList("status", "reload", "broadcast", "jobs", "restart"),
+            TestCommandService.childNames(commands.root(CommandRoots.CODEUTILS)));
+    }
+
+    @Test
+    void aRestartSubsystemThatIsOffLeavesTheRootNameFree() {
+        TestCommandService commands = register(true, true, false);
+
+        assertNull(commands.root(CommandRoots.RESTART));
+        assertFalse(
+            TestCommandService.childNames(commands.root(CommandRoots.CODEUTILS))
+                .contains("restart"));
+    }
+
+    @Test
+    void restartInSecondsArmsTheStopAndSaysHowLongIsLeft() {
+        TestCommandService commands = register(true, true, true);
+        TestCommandContext context = new TestCommandContext().set("when", "600");
+
+        runRoot(commands, CommandRoots.RESTART, context);
+
+        assertEquals(UtilsMessages.RESTART_ARMED, context.last().key);
+        assertEquals("10m", context.last().arguments.get(0));
+        assertTrue(restartPlan.armed());
+        assertEquals(at("2026-09-03T03:10:00"), restartPlan.stopAt());
+    }
+
+    @Test
+    void restartAtAMomentOfTheDayArmsTheStopForThatMoment() {
+        TestCommandService commands = register(true, true, true);
+        TestCommandContext context = new TestCommandContext().set("when", "06:00");
+
+        runRoot(commands, CommandRoots.RESTART, context);
+
+        assertEquals(UtilsMessages.RESTART_ARMED, context.last().key);
+        assertEquals(at("2026-09-03T06:00:00"), restartPlan.stopAt());
+    }
+
+    @Test
+    void restartCancelTakesTheStopBackAndAnswersNothingWhenThereWasNone() {
+        TestCommandService commands = register(true, true, true);
+        TestCommandContext empty = new TestCommandContext().set("when", "cancel");
+
+        runRoot(commands, CommandRoots.RESTART, empty);
+
+        assertEquals(UtilsMessages.RESTART_NOTHING, empty.last().key);
+        assertTrue(empty.last().error);
+
+        runRoot(commands, CommandRoots.RESTART, new TestCommandContext().set("when", "600"));
+        TestCommandContext cancel = new TestCommandContext().set("when", "cancel");
+        runRoot(commands, CommandRoots.RESTART, cancel);
+
+        assertEquals(UtilsMessages.RESTART_CANCELLED, cancel.last().key);
+        assertFalse(restartPlan.armed());
+    }
+
+    @Test
+    void aWordThatIsNeitherATimeNorACommandAnswersWithTheUsage() {
+        TestCommandService commands = register(true, true, true);
+        TestCommandContext context = new TestCommandContext().set("when", "tomorrow");
+
+        runRoot(commands, CommandRoots.RESTART, context);
+
+        assertEquals(UtilsMessages.USAGE_RESTART, context.last().key);
+        assertTrue(context.last().error);
+        assertFalse(restartPlan.armed());
+    }
+
+    @Test
+    void restartNowClosesTheDoorAndKicksWithoutWarnings() {
+        TestCommandService commands = register(true, true, true);
+        TestCommandContext context = new TestCommandContext().set("when", "now");
+
+        runRoot(commands, CommandRoots.RESTART, context);
+
+        assertEquals(UtilsMessages.RESTART_ARMED, context.last().key);
+        assertTrue(restartPlan.doorClosed());
+    }
+
+    @Test
+    void theSuggestionsOfTheRestartArgumentHoldItsTwoWords() {
+        UtilsArguments arguments = new UtilsArguments(ArrayList::new, ArrayList::new);
+
+        assertEquals(
+            Arrays.asList("cancel"),
+            arguments.restartWhen()
+                .suggestions(null, "c"));
+        assertEquals(
+            Arrays.asList("cancel", "now"),
+            arguments.restartWhen()
+                .suggestions(null, ""));
+    }
+
+    private static void runRoot(TestCommandService commands, String name, TestCommandContext context) {
+        commands.root(name)
+            .action()
+            .run(context);
+    }
+
     private TestCommandService register(boolean withBroadcasts, boolean withJobs) {
+        return register(withBroadcasts, withJobs, false);
+    }
+
+    private TestCommandService register(boolean withBroadcasts, boolean withJobs, boolean withRestart) {
         BroadcastEngine broadcasts = withBroadcasts ? broadcasts() : null;
         JobEngine jobs = withJobs ? jobs() : null;
+        RestartPlan restart = withRestart ? restart() : null;
         long now = at("2026-09-03T03:00:00");
         if (broadcasts != null) {
             broadcasts.arm(now);
@@ -307,12 +431,37 @@ class UtilsCommandsTest {
             () -> ZONE,
             broadcasts,
             jobs,
+            restart,
             arguments,
             context -> "console",
             maintenance,
             () -> now,
             LOG).register(commands);
         return commands;
+    }
+
+    private RestartPlan restart() {
+        FakeShutdown shutdown = new FakeShutdown();
+        restartFile.warnings.seconds = new ArrayList<>();
+        RestartRunner runner = new RestartRunner(
+            () -> restartFile,
+            registry,
+            shutdown,
+            new FakeScheduler(),
+            () -> {},
+            LOG);
+        RestartPlan plan = new RestartPlan(
+            () -> restartFile,
+            registry,
+            new Conditions(registry),
+            new Announcer(facts, new FakeTexts()),
+            shutdown,
+            runner,
+            () -> ZONE,
+            LOG);
+        plan.arm(at("2026-09-03T03:00:00"));
+        restartPlan = plan;
+        return plan;
     }
 
     private BroadcastEngine broadcasts() {

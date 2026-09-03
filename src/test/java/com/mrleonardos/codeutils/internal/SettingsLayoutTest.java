@@ -21,11 +21,12 @@ import com.mrleonardos.codecore.api.config.Comment;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile;
 import com.mrleonardos.codeutils.internal.command.CommandRoots;
 import com.mrleonardos.codeutils.internal.job.JobsFile;
+import com.mrleonardos.codeutils.internal.restart.RestartFile;
 
 class SettingsLayoutTest {
 
     private static final List<Class<?>> FILES = Arrays
-        .asList(UtilsSettings.class, CommandRoots.class, BroadcastsFile.class, JobsFile.class);
+        .asList(UtilsSettings.class, CommandRoots.class, BroadcastsFile.class, JobsFile.class, RestartFile.class);
 
     /**
      * Элементы массива таблиц полями секции не описаны, поэтому комментарий к ним ядро поставить не
@@ -113,12 +114,26 @@ class SettingsLayoutTest {
     }
 
     @Test
+    void theRestartFileHoldsFourBlocks() {
+        assertEquals(
+            new TreeSet<>(Arrays.asList("messages", "schedule", "steps", "warnings")),
+            names(RestartFile.class));
+        assertEquals(new TreeSet<>(Arrays.asList("at", "days", "enabled", "when")), names(RestartFile.Schedule.class));
+        assertEquals(new TreeSet<>(Arrays.asList("prefix", "seconds", "sink")), names(RestartFile.Warnings.class));
+        assertEquals(
+            new TreeSet<>(Arrays.asList("closeDoorSeconds", "kickSeconds", "savePlayers", "saveWorlds", "settleTicks")),
+            names(RestartFile.Steps.class));
+        assertEquals(new TreeSet<>(Arrays.asList("doorKey", "kickKey")), names(RestartFile.Messages.class));
+        assertEquals(WhenBlock.class, fieldType(RestartFile.Schedule.class, "when"));
+    }
+
+    @Test
     void aCommandRootRecordHoldsTwoKeys() {
         assertEquals(new TreeSet<>(Arrays.asList("aliases", "enabled")), names(CommandRoots.Entry.class));
     }
 
     @Test
-    void everyFieldOfTheFourFilesExplainsItself() {
+    void everyFieldOfEveryFileExplainsItself() {
         List<String> silent = new ArrayList<>();
         for (Class<?> type : FILES) {
             collectSilent(type, "", silent);
@@ -128,7 +143,7 @@ class SettingsLayoutTest {
     }
 
     @Test
-    void everyOneOfTheFourFilesSaysWhatItIsInItsFirstLines() {
+    void everyFileSaysWhatItIsInItsFirstLines() {
         for (Class<?> type : FILES) {
             Comment header = type.getAnnotation(Comment.class);
             assertTrue(
