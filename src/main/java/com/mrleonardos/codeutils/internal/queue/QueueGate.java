@@ -86,8 +86,8 @@ public final class QueueGate {
     }
 
     public void left(long now) {
-        online = Math.max(0, online - 1);
         board.freed(now);
+        online = Math.max(0, online - 1);
     }
 
     public int online() {

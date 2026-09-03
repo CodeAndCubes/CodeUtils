@@ -71,7 +71,10 @@ public final class BroadcastEngine implements Subsystem, SpiNames.Source {
             if (block.intervalSeconds > 0) {
                 set.deadline = now + Math.max(0, block.firstDelaySeconds) * MILLIS;
             } else {
-                log.info("Broadcast set {} has intervalSeconds = 0, it goes out only by /broadcast {}", name, name);
+                log.info(
+                    "Broadcast set {} has intervalSeconds = 0, it goes out only by /codeutils broadcast {}",
+                    name,
+                    name);
             }
             live.put(name, set);
         }

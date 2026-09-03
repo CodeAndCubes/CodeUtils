@@ -14,7 +14,7 @@ import com.mrleonardos.codeutils.internal.UtilsSettings;
 import com.mrleonardos.codeutils.internal.WhenBlock;
 
 @Comment({ "Наборы сообщений, которые сервер шлёт сам. Наборов сколько угодно, имя набора это имя секции.",
-    "Оно же идёт в /broadcast <набор> и в /codeutils status.", "",
+    "Оно же идёт в /codeutils broadcast <набор> и в /codeutils status.", "",
     "Сообщение набора это секция [[sets.<набор>.messages]] с ключами text, hover, click и parts.",
     "Порядок сообщений в файле это порядок при order = \"cycle\".",
     "click пишется как \"url:<адрес>\", \"run:<команда>\" или \"suggest:<строка>\";",
@@ -114,7 +114,7 @@ public final class BroadcastsFile {
         public boolean enabled = true;
 
         @Comment({ "Сколько секунд между сообщениями набора.",
-            "Ноль снимает расписание: набор уходит только по /broadcast <набор>." })
+            "Ноль снимает расписание: набор уходит только по /codeutils broadcast <набор>." })
         public int intervalSeconds = 600;
 
         @Comment({ "Через сколько секунд после старта сервера уйдёт первое сообщение.",
