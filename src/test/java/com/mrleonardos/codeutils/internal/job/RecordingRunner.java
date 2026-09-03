@@ -6,13 +6,17 @@ import java.util.List;
 import com.mrleonardos.codeutils.api.run.CommandRunner;
 import com.mrleonardos.codeutils.api.run.CommandTicket;
 import com.mrleonardos.codeutils.api.run.RunOutcome;
-import com.mrleonardos.codeutils.api.run.SenderChoice;
 
-/** Исполнитель, который ничего не выполняет, а записывает заявки и отдаёт заданный ответ. */
+/**
+ * Исполнитель, который ничего не выполняет, а записывает заявки и отдаёт заданный ответ.
+ *
+ * <p>
+ * Отсутствующего игрока он не проверяет: разбор {@code as} и поиск игрока делает движок, и заявка на
+ * игрока, которого нет онлайн, до исполнителя не доходит вовсе.
+ */
 public final class RecordingRunner implements CommandRunner {
 
     private final List<CommandTicket> tickets = new ArrayList<>();
-    private final List<String> online = new ArrayList<>();
 
     private int worksFrom = 1;
 
@@ -22,21 +26,9 @@ public final class RecordingRunner implements CommandRunner {
         return this;
     }
 
-    public RecordingRunner online(String nick) {
-        online.add(nick);
-        return this;
-    }
-
     @Override
     public RunOutcome run(CommandTicket ticket) {
         tickets.add(ticket);
-        if (ticket.sender()
-            .kind() == SenderChoice.Kind.PLAYER
-            && !online.contains(
-                ticket.sender()
-                    .nick())) {
-            return RunOutcome.refused(RunOutcome.NO_PLAYER);
-        }
         return worksFrom > 0 && ticket.attempt() >= worksFrom ? RunOutcome.ran(1) : RunOutcome.ran(0);
     }
 

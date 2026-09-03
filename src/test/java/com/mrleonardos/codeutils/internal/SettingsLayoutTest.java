@@ -85,7 +85,7 @@ class SettingsLayoutTest {
     }
 
     @Test
-    void aJobHoldsTenKeys() {
+    void aJobHoldsElevenKeys() {
         assertEquals(
             new TreeSet<>(
                 Arrays.asList(
@@ -98,6 +98,7 @@ class SettingsLayoutTest {
                     "onFailure",
                     "retries",
                     "retrySeconds",
+                    "runner",
                     "when")),
             names(JobsFile.JobBlock.class));
     }

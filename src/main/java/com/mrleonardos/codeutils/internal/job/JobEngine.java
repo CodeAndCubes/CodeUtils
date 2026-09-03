@@ -11,6 +11,7 @@ import java.util.function.Supplier;
 
 import org.apache.logging.log4j.Logger;
 
+import com.mrleonardos.codecore.api.actor.PlayerRef;
 import com.mrleonardos.codeutils.api.UtilsRegistry;
 import com.mrleonardos.codeutils.api.run.CommandRunner;
 import com.mrleonardos.codeutils.api.run.CommandTicket;
@@ -20,6 +21,7 @@ import com.mrleonardos.codeutils.api.when.ServerSnapshot;
 import com.mrleonardos.codeutils.api.when.When;
 import com.mrleonardos.codeutils.internal.Clocks;
 import com.mrleonardos.codeutils.internal.Conditions;
+import com.mrleonardos.codeutils.internal.ServerFacts;
 import com.mrleonardos.codeutils.internal.SpiNames;
 import com.mrleonardos.codeutils.internal.Subsystem;
 import com.mrleonardos.codeutils.internal.WhenBlock;
@@ -27,23 +29,22 @@ import com.mrleonardos.codeutils.internal.job.JobsFile.JobBlock;
 
 public final class JobEngine implements Subsystem, SpiNames.Source {
 
-    /** Имя встроенного исполнителя: он отдаёт строку менеджеру команд сервера. */
-    public static final String SERVER_RUNNER = "server";
-
     private final Supplier<JobsFile> file;
     private final UtilsRegistry registry;
     private final Conditions conditions;
+    private final ServerFacts facts;
     private final Supplier<ZoneId> zone;
     private final Supplier<Boolean> audit;
     private final Logger log;
 
     private final Map<String, Live> live = new LinkedHashMap<>();
 
-    public JobEngine(Supplier<JobsFile> file, UtilsRegistry registry, Conditions conditions, Supplier<ZoneId> zone,
-        Supplier<Boolean> audit, Logger log) {
+    public JobEngine(Supplier<JobsFile> file, UtilsRegistry registry, Conditions conditions, ServerFacts facts,
+        Supplier<ZoneId> zone, Supplier<Boolean> audit, Logger log) {
         this.file = file;
         this.registry = registry;
         this.conditions = conditions;
+        this.facts = facts;
         this.zone = zone;
         this.audit = audit;
         this.log = log;
@@ -62,7 +63,16 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
                 log.warn("Job {} holds no command, it stays quiet", name);
                 continue;
             }
-            Live job = new Live(name, block);
+            CommandRunner runner = registry.runner(word(block.runner))
+                .orElse(null);
+            if (runner == null) {
+                log.warn(
+                    "Job {} names the runner {}, and no mod registered it, the job stays quiet",
+                    name,
+                    block.runner);
+                continue;
+            }
+            Live job = new Live(name, block, runner);
             if (job.schedule.idle()) {
                 log.warn("Job {} has neither everySeconds nor at, it stays quiet", name);
                 continue;
@@ -102,7 +112,7 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
                 continue;
             }
             for (int shot = 0; shot < due; shot++) {
-                fire(job, CommandTicket.of(job.name, job.block.command, job.sender), to);
+                fire(job, 1, to);
             }
         }
     }
@@ -112,7 +122,11 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
         if (job == null) {
             return RunOutcome.refused(RunOutcome.NO_RUNNER);
         }
-        return run(CommandTicket.of(job.name, job.block.command, job.sender));
+        PlayerRef found = playerOf(job);
+        if (job.sender.kind() == SenderChoice.Kind.PLAYER && found == null) {
+            return RunOutcome.refused(RunOutcome.NO_PLAYER);
+        }
+        return job.runner.run(ticket(job, found, 1));
     }
 
     public boolean knows(String name) {
@@ -145,16 +159,22 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
         if (job.retryAt == 0L || now < job.retryAt) {
             return;
         }
-        CommandTicket ticket = job.pending;
+        int attempt = job.attempt;
         job.retryAt = 0L;
-        job.pending = null;
-        if (ticket != null) {
-            fire(job, ticket, now);
+        job.attempt = 0;
+        if (attempt > 0) {
+            fire(job, attempt, now);
         }
     }
 
-    private void fire(Live job, CommandTicket ticket, long now) {
-        RunOutcome outcome = run(ticket);
+    private void fire(Live job, int attempt, long now) {
+        PlayerRef found = playerOf(job);
+        CommandTicket ticket = ticket(job, found, attempt);
+        if (job.sender.kind() == SenderChoice.Kind.PLAYER && found == null) {
+            failed(job, ticket, RunOutcome.refused(RunOutcome.NO_PLAYER), now);
+            return;
+        }
+        RunOutcome outcome = job.runner.run(ticket);
         if (outcome.successful()) {
             if (audit.get()
                 .booleanValue()) {
@@ -169,10 +189,25 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
         failed(job, ticket, outcome, now);
     }
 
-    private RunOutcome run(CommandTicket ticket) {
-        CommandRunner runner = registry.runner(SERVER_RUNNER)
-            .orElse(null);
-        return runner == null ? RunOutcome.refused(RunOutcome.NO_RUNNER) : runner.run(ticket);
+    private PlayerRef playerOf(Live job) {
+        if (job.sender.kind() != SenderChoice.Kind.PLAYER) {
+            return null;
+        }
+        for (PlayerRef player : facts.online()) {
+            if (player.name()
+                .equalsIgnoreCase(job.sender.nick())) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    private static CommandTicket ticket(Live job, PlayerRef player, int attempt) {
+        CommandTicket made = CommandTicket.of(job.name, job.block.command, job.sender, player);
+        for (int number = 1; number < attempt; number++) {
+            made = made.next();
+        }
+        return made;
     }
 
     private void failed(Live job, CommandTicket ticket, RunOutcome outcome, long now) {
@@ -183,7 +218,7 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
         if (JobsFile.ON_FAILURE_RETRY.equals(policy)) {
             int retries = Math.max(0, job.block.retries);
             if (ticket.attempt() <= retries) {
-                job.pending = ticket.next();
+                job.attempt = ticket.attempt() + 1;
                 job.retryAt = now + Math.max(1, job.block.retrySeconds) * Clocks.MILLIS;
                 return;
             }
@@ -225,16 +260,18 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
         private final JobBlock block;
         private final When when;
         private final SenderChoice sender;
+        private final CommandRunner runner;
         private final JobSchedule schedule;
 
         private long previous;
         private long retryAt;
-        private CommandTicket pending;
+        private int attempt;
         private boolean policyTold;
 
-        private Live(String name, JobBlock block) {
+        private Live(String name, JobBlock block, CommandRunner runner) {
             this.name = name;
             this.block = block;
+            this.runner = runner;
             WhenBlock written = block.when == null ? new WhenBlock() : block.when;
             this.when = written.toWhen(where(name), log);
             this.sender = SenderChoice.parse(block.as);

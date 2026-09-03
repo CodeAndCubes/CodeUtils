@@ -52,7 +52,7 @@ class UtilsCommandsTest {
 
     UtilsCommandsTest() {
         registry.addSink(BroadcastsFile.SINK_CHAT, sink);
-        registry.addRunner(JobEngine.SERVER_RUNNER, runner);
+        registry.addRunner(JobsFile.SERVER_RUNNER, runner);
         broadcastsFile.sets = new LinkedHashMap<>();
         broadcastsFile.sets.put("tips", set("первое", "второе"));
         jobsFile.jobs = new LinkedHashMap<>();
@@ -326,7 +326,14 @@ class UtilsCommandsTest {
     }
 
     private JobEngine jobs() {
-        return new JobEngine(() -> jobsFile, registry, new Conditions(registry), () -> ZONE, () -> Boolean.FALSE, LOG);
+        return new JobEngine(
+            () -> jobsFile,
+            registry,
+            new Conditions(registry),
+            facts,
+            () -> ZONE,
+            () -> Boolean.FALSE,
+            LOG);
     }
 
     private static void run(TestCommandService commands, String branch, TestCommandContext context) {

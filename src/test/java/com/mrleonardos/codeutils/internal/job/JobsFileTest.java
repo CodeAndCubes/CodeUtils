@@ -48,6 +48,7 @@ class JobsFileTest {
         assertEquals(0, clean.everySeconds);
         assertEquals(Arrays.asList("04:00"), clean.at);
         assertEquals("console", clean.as);
+        assertEquals(JobsFile.SERVER_RUNNER, clean.runner);
         assertEquals(JobsFile.ON_FAILURE_LOG, clean.onFailure);
         assertEquals(JobsFile.DEFAULT_RETRY_SECONDS, clean.retrySeconds);
         assertEquals(0, clean.retries);
@@ -68,6 +69,7 @@ class JobsFileTest {
         assertEquals(written.everySeconds, again.everySeconds);
         assertEquals(written.at, again.at);
         assertEquals(written.as, again.as);
+        assertEquals(written.runner, again.runner);
         assertEquals(written.onFailure, again.onFailure);
         assertEquals(written.retrySeconds, again.retrySeconds);
         assertEquals(written.retries, again.retries);
@@ -89,6 +91,7 @@ class JobsFileTest {
         assertTrue(text.contains("[jobs.night-clean]"), text);
         assertTrue(text.contains("[jobs.night-clean.when]"), text);
         assertTrue(text.contains("at = [\"04:00\"]"), text);
+        assertTrue(text.contains("runner = \"server\""), text);
         assertTrue(text.contains("Команда пишется без косой черты впереди"), () -> "шапка файла на месте:\n" + text);
     }
 
@@ -105,6 +108,7 @@ class JobsFileTest {
             "everySeconds = 3600",
             "at = [\"04:00\", \"16:00\"]",
             "as = \"commandblock\"",
+            "runner = \"webhook\"",
             "onFailure = \"retry\"",
             "retrySeconds = 15",
             "retries = 2",
@@ -122,6 +126,7 @@ class JobsFileTest {
         assertEquals(3600, save.everySeconds);
         assertEquals(Arrays.asList("04:00", "16:00"), save.at);
         assertEquals("commandblock", save.as);
+        assertEquals("webhook", save.runner);
         assertEquals(JobsFile.ON_FAILURE_RETRY, save.onFailure);
         assertEquals(15, save.retrySeconds);
         assertEquals(2, save.retries);

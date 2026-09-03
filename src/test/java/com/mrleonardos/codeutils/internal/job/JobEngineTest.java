@@ -20,6 +20,7 @@ import com.mrleonardos.codeutils.api.run.SenderChoice;
 import com.mrleonardos.codeutils.api.when.ServerSnapshot;
 import com.mrleonardos.codeutils.internal.Clocks;
 import com.mrleonardos.codeutils.internal.Conditions;
+import com.mrleonardos.codeutils.internal.FakeFacts;
 import com.mrleonardos.codeutils.internal.WhenBlock;
 import com.mrleonardos.codeutils.internal.job.JobsFile.JobBlock;
 
@@ -33,12 +34,13 @@ class JobEngineTest {
 
     private final UtilsRegistry registry = new UtilsRegistry();
     private final RecordingRunner runner = new RecordingRunner();
+    private final FakeFacts facts = new FakeFacts();
     private final JobsFile file = new JobsFile();
 
     private int players = 1;
 
     JobEngineTest() {
-        registry.addRunner(JobEngine.SERVER_RUNNER, runner);
+        registry.addRunner(JobsFile.SERVER_RUNNER, runner);
         file.jobs = new LinkedHashMap<>();
     }
 
@@ -126,7 +128,7 @@ class JobEngineTest {
     }
 
     @Test
-    void aPlayerWhoIsNotOnlineCountsAsAFailureAndNotAsACrash() {
+    void aPlayerWhoIsNotOnlineIsARefusalDecidedBeforeTheRunner() {
         JobBlock block = job("give", 10, new String[0]);
         block.as = "player:Steve";
         put("give", block);
@@ -136,11 +138,66 @@ class JobEngineTest {
 
         engine.tick(0L, start + 10 * SECOND, snapshot("2026-09-03T04:00:10"));
 
-        assertEquals(1, runner.runs());
+        assertEquals(0, runner.runs(), "исполнителя не звали: игрока нет онлайн");
         assertEquals(
             RunOutcome.NO_PLAYER,
             engine.runNow("give")
                 .reason());
+        assertEquals(0, runner.runs());
+    }
+
+    @Test
+    void aPlayerWhoIsOnlineComesToTheRunnerAsAReadyReference() {
+        JobBlock block = job("give", 10, new String[0]);
+        block.as = "player:Steve";
+        put("give", block);
+        facts.join("Steve", 0);
+        JobEngine engine = engine();
+        long start = at("2026-09-03T04:00:00");
+        engine.arm(start);
+
+        engine.tick(0L, start + 10 * SECOND, snapshot("2026-09-03T04:00:10"));
+
+        assertEquals(1, runner.runs());
+        assertEquals(
+            "Steve",
+            runner.tickets()
+                .get(0)
+                .player()
+                .orElseThrow(() -> new AssertionError("движок обязан положить ссылку на игрока в заявку"))
+                .name());
+    }
+
+    @Test
+    void aJobThatNamesAnUnknownRunnerStaysQuietAndDoesNotFallBackToServer() {
+        JobBlock block = job("save-all", 10, new String[0]);
+        block.runner = "serverr";
+        put("save", block);
+        JobEngine engine = engine();
+        long start = at("2026-09-03T04:00:00");
+        engine.arm(start);
+
+        engine.tick(0L, start + 10 * SECOND, snapshot("2026-09-03T04:00:10"));
+
+        assertFalse(engine.knows("save"), "задание с опечаткой в runner не работает");
+        assertEquals(0, runner.runs(), "встроенный исполнитель молчит, подмены не было");
+    }
+
+    @Test
+    void aJobGoesToTheRunnerItNamed() {
+        RecordingRunner webhook = new RecordingRunner();
+        registry.addRunner("webhook", webhook);
+        JobBlock block = job("save-all", 10, new String[0]);
+        block.runner = "webhook";
+        put("save", block);
+        JobEngine engine = engine();
+        long start = at("2026-09-03T04:00:00");
+        engine.arm(start);
+
+        engine.tick(0L, start + 10 * SECOND, snapshot("2026-09-03T04:00:10"));
+
+        assertEquals(1, webhook.runs());
+        assertEquals(0, runner.runs(), "встроенный исполнитель этого задания не касался");
     }
 
     @Test
@@ -256,7 +313,14 @@ class JobEngineTest {
     }
 
     private JobEngine engine() {
-        return new JobEngine(() -> file, registry, new Conditions(registry), () -> ZONE, () -> Boolean.FALSE, LOG);
+        return new JobEngine(
+            () -> file,
+            registry,
+            new Conditions(registry),
+            facts,
+            () -> ZONE,
+            () -> Boolean.FALSE,
+            LOG);
     }
 
     private static JobBlock failing(String policy) {

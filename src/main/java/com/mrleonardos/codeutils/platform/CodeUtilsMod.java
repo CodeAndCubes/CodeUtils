@@ -82,7 +82,7 @@ public final class CodeUtilsMod {
 
         registry.addSink(BroadcastsFile.SINK_CHAT, new ChatSink());
         registry.addSink(BroadcastsFile.SINK_LOG, new LogSink(LOG));
-        registry.addRunner(JobEngine.SERVER_RUNNER, new ServerCommandRunner());
+        registry.addRunner(JobsFile.SERVER_RUNNER, new ServerCommandRunner());
         CodeUtilsApi.install(new UtilsRuntimeImpl(registry, settings::get));
 
         ServerFacts facts = new ServerFactsImpl();
@@ -97,7 +97,7 @@ public final class CodeUtilsMod {
             names.add(broadcasts);
         }
         if (jobsFile != null) {
-            jobs = new JobEngine(jobsFile::get, registry, conditions, zone, this::audit, LOG);
+            jobs = new JobEngine(jobsFile::get, registry, conditions, facts, zone, this::audit, LOG);
             beat.add(jobs);
             names.add(jobs);
         }

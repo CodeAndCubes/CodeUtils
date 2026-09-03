@@ -25,6 +25,8 @@ public final class JobsFile {
 
     public static final String NIGHT_CLEAN = "night-clean";
 
+    public static final String SERVER_RUNNER = "server";
+
     public static final String ON_FAILURE_LOG = "log";
     public static final String ON_FAILURE_QUIET = "quiet";
     public static final String ON_FAILURE_RETRY = "retry";
@@ -60,6 +62,9 @@ public final class JobsFile {
             if (job.as == null) {
                 job.as = SenderChoice.CONSOLE_WORD;
             }
+            if (job.runner == null) {
+                job.runner = SERVER_RUNNER;
+            }
         }
     }
 
@@ -94,6 +99,11 @@ public final class JobsFile {
             "  снимается ванильным правилом commandBlockOutput = false;",
             "\"player:<ник>\" от игрока, и если его нет онлайн, срабатывает политика отказа." })
         public String as = SenderChoice.CONSOLE_WORD;
+
+        @Comment({ "Чем выполнять. Встроен \"server\", он отдаёт строку командам сервера.",
+            "Остальные исполнители приносят моды, и они вправе понимать \"as\" по-своему или не понимать вовсе.",
+            "Незнакомое имя выключает задание с одной строкой в лог при старте." })
+        public String runner = SERVER_RUNNER;
 
         @Comment({ "Что делать, когда команда не сработала:",
             "\"log\" строка в лог, \"quiet\" молча, \"retry\" повторить." })
