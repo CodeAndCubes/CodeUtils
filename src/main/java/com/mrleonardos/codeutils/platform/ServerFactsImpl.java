@@ -65,6 +65,6 @@ public final class ServerFactsImpl implements ServerFacts {
         PermissionService rights = CodeApi.services()
             .find(PermissionService.class)
             .orElse(null);
-        return rights == null || rights.has(player, node);
+        return rights != null && rights.has(player, node);
     }
 }

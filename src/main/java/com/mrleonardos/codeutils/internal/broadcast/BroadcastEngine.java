@@ -68,7 +68,11 @@ public final class BroadcastEngine implements Subsystem, SpiNames.Source {
                 continue;
             }
             Live set = new Live(name, block, sink, new Rotation(Rotation.order(block.order, where(name), log), random));
-            set.deadline = now + Math.max(0, block.firstDelaySeconds) * MILLIS;
+            if (block.intervalSeconds > 0) {
+                set.deadline = now + Math.max(0, block.firstDelaySeconds) * MILLIS;
+            } else {
+                log.info("Broadcast set {} has intervalSeconds = 0, it goes out only by /broadcast {}", name, name);
+            }
             live.put(name, set);
         }
     }
@@ -109,10 +113,10 @@ public final class BroadcastEngine implements Subsystem, SpiNames.Source {
     @Override
     public void tick(long from, long to, ServerSnapshot snapshot) {
         for (Live set : live.values()) {
-            if (to < set.deadline) {
+            if (set.deadline == 0L || to < set.deadline) {
                 continue;
             }
-            set.deadline = to + Math.max(1, set.block.intervalSeconds) * MILLIS;
+            set.deadline = to + set.block.intervalSeconds * MILLIS;
             if (!conditions.allows(set.when, snapshot)) {
                 continue;
             }

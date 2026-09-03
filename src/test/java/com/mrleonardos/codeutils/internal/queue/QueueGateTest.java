@@ -199,14 +199,39 @@ class QueueGateTest {
     }
 
     @Test
-    void anUnknownPolicyLeavesTheDoorOpenAndSaysSoOnce() {
+    void anUnknownPolicyLeavesTheBaseCapAndTakesTheTiersAway() {
         file.queue.policy = "by-permissionn";
-        QueueGate gate = gate(1000);
+        QueueGate gate = gate(63);
+
+        assertFalse(
+            gate.decide(plain, "Plain", START)
+                .allowed(),
+            "общий потолок работает и с опечаткой в имени политики");
+        assertFalse(
+            gate.decide(vip, "Vip", START)
+                .allowed(),
+            "ступени без своей политики не работают, все считаются по slots.base");
+
+        QueueGate open = gate(10);
+
+        assertTrue(
+            open.decide(plain, "Plain", START)
+                .allowed(),
+            "ниже общего потолка вход свободен");
+    }
+
+    @Test
+    void aPolicyIsAskedForTheBaseCapWhenNoTierFits() {
+        QueueGate gate = gate(59);
 
         assertTrue(
             gate.decide(plain, "Plain", START)
-                .allowed(),
-            "мод не запирает сервер из-за опечатки в имени политики");
+                .allowed());
+        assertEquals(
+            "",
+            gate.decide(plain, "Plain", START)
+                .tier(),
+            "у игрока без ступени её и нет");
     }
 
     private QueueGate gate(int online) {
@@ -214,4 +239,5 @@ class QueueGateTest {
         gate.arm(online, 200);
         return gate;
     }
+
 }

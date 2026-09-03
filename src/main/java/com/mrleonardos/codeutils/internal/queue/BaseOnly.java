@@ -5,15 +5,10 @@ import com.mrleonardos.codeutils.api.queue.QueuePolicy;
 import com.mrleonardos.codeutils.api.queue.QueueRequest;
 import com.mrleonardos.codeutils.api.queue.QueueState;
 
-public final class ByPermission implements QueuePolicy {
+public final class BaseOnly implements QueuePolicy {
 
     @Override
     public QueueDecision decide(QueueRequest request, QueueState state) {
-        for (String tier : state.tiers()) {
-            if (state.allowed(request.id(), state.nodeOf(tier))) {
-                return Seats.take(request, state, tier, state.slotsOf(tier));
-            }
-        }
         return Seats.take(request, state, QueueDecision.NO_TIER, state.baseSlots());
     }
 }

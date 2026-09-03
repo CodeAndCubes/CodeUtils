@@ -1,4 +1,4 @@
-codeutils.command.usage.codeutils=/codeutils <status|reload|broadcast|jobs>
+codeutils.command.usage.codeutils=/codeutils <status|reload|broadcast|jobs|clean|restart|queue>
 codeutils.command.usage.restart=/restart <duration|HH:MM|cancel|now>
 codeutils.command.usage.broadcast=/broadcast <text>
 
@@ -40,7 +40,7 @@ codeutils.queue.tier=Tier %s: cap %s
 codeutils.error.unknown_set=There is no set named %s
 codeutils.error.unknown_rule=There is no rule named %s
 codeutils.error.unknown_job=There is no job named %s
-codeutils.error.subsystem_off=%s is off in utils.toml
+codeutils.error.subsystem_off=%s is off in its own settings file
 
 codeutils.reload.done=Settings are re-read
 codeutils.reload.failed=Settings are not re-read, the reason is in the server log

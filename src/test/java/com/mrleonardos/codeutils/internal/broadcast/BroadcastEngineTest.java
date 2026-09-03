@@ -199,6 +199,25 @@ class BroadcastEngineTest {
     }
 
     @Test
+    void anIntervalOfZeroTakesTheScheduleOffAndLeavesTheSetToTheCommand() {
+        put("tips", set(0, 0, "первое", "второе"));
+        facts.join("Steve", 0);
+        BroadcastEngine engine = engine();
+        engine.arm(START);
+
+        tick(engine, START + SECOND);
+        tick(engine, START + 3600 * SECOND);
+
+        assertEquals(0, sink.sends(), "ноль снимает расписание, а не значит «каждую секунду»");
+
+        assertTrue(
+            engine.sendNow("tips")
+                .done(),
+            "руками набор уходит");
+        assertEquals(1, sink.sends());
+    }
+
+    @Test
     void aSetThatIsOffDoesNotWork() {
         SetBlock block = set(10, 0, "текст");
         block.enabled = false;

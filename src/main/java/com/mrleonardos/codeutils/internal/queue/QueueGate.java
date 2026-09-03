@@ -25,7 +25,7 @@ public final class QueueGate {
 
     private final QueueBoard board = new QueueBoard();
 
-    private volatile QueuePolicy policy;
+    private volatile QueuePolicy policy = new BaseOnly();
     private volatile QueueFile settings;
     private volatile int online;
 
@@ -40,11 +40,13 @@ public final class QueueGate {
         online = Math.max(0, onlineNow);
         QueueFile written = file.get();
         settings = written;
-        policy = registry.policy(word(written.queue.policy))
+        QueuePolicy named = registry.policy(word(written.queue.policy))
             .orElse(null);
-        if (policy == null) {
+        policy = named == null ? new BaseOnly() : named;
+        if (named == null) {
             log.warn(
-                "{} names the queue policy {}, and no mod registered it, the soft caps stay open",
+                "{} names the queue policy {}, and no mod registered it, the tiers do not work: "
+                    + "everybody is counted against slots.base",
                 QueueFile.FILE_NAME,
                 written.queue.policy);
         }
@@ -62,13 +64,7 @@ public final class QueueGate {
 
     public Answer decide(UUID id, String name, long now) {
         QueuePolicy chosen = policy;
-        if (chosen == null) {
-            return Answer.let(QueueDecision.NO_TIER);
-        }
-        QueueFile written = settings;
-        if (written == null) {
-            return Answer.let(QueueDecision.NO_TIER);
-        }
+        QueueFile written = held();
         board.expire(now, written.queue.ticketSeconds);
         SlotRules rules = SlotRules.of(written);
         QueueDecision decision = chosen

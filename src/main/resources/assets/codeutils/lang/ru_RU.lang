@@ -1,4 +1,4 @@
-codeutils.command.usage.codeutils=/codeutils <status|reload|broadcast|jobs>
+codeutils.command.usage.codeutils=/codeutils <status|reload|broadcast|jobs|clean|restart|queue>
 codeutils.command.usage.restart=/restart <срок|ЧЧ:ММ|cancel|now>
 codeutils.command.usage.broadcast=/broadcast <текст>
 
@@ -40,7 +40,7 @@ codeutils.queue.tier=Ступень %s: потолок %s
 codeutils.error.unknown_set=Набора %s нет
 codeutils.error.unknown_rule=Правила %s нет
 codeutils.error.unknown_job=Задания %s нет
-codeutils.error.subsystem_off=%s выключено в utils.toml
+codeutils.error.subsystem_off=%s выключено в своём файле настроек
 
 codeutils.reload.done=Настройки перечитаны
 codeutils.reload.failed=Настройки не перечитаны, причина в логе сервера
