@@ -1,0 +1,43 @@
+codeutils.command.usage.codeutils=/codeutils <status|reload|broadcast|jobs>
+codeutils.command.usage.restart=/restart <seconds|HH:MM|cancel|now>
+codeutils.command.usage.broadcast=/broadcast <text>
+
+codeutils.status.header=CodeUtils: what is running
+codeutils.status.on=%s: on, %s entries
+codeutils.status.off=%s: off
+codeutils.status.next=Next job moment: %s
+
+codeutils.broadcast.sent=Sent to %s player(s)
+codeutils.broadcast.nobody=Nobody is online to hear it
+
+codeutils.jobs.header=Jobs, %s in total
+codeutils.jobs.row=%s: %s, next moment %s
+codeutils.jobs.none=No job is working
+codeutils.jobs.ran=Job %s has run
+codeutils.jobs.failed=Job %s did not work: %s
+
+codeutils.clean.counted=Matching entities: %s
+codeutils.clean.done=Entities removed: %s
+codeutils.clean.warn=Spare entities go in %s second(s), %s of them
+
+codeutils.restart.armed=Restart in %s
+codeutils.restart.cancelled=Restart is called off
+codeutils.restart.nothing=No restart was set
+codeutils.restart.too_late=Too late to call it off, players are already being kicked
+codeutils.restart.warn=Restart in %s
+codeutils.restart.kick=The server is restarting, come back in a minute
+codeutils.restart.door=The server is restarting, come back in a minute
+
+codeutils.queue.header=Slots and queue
+codeutils.queue.row=%s: tier %s, knocking since %s
+codeutils.queue.empty=The queue is empty
+codeutils.queue.refused=The server is full, you are number %s. Knock again in %s second(s)
+codeutils.queue.tier=tier %s
+
+codeutils.error.unknown_set=There is no set named %s
+codeutils.error.unknown_rule=There is no rule named %s
+codeutils.error.unknown_job=There is no job named %s
+codeutils.error.subsystem_off=%s is off in utils.toml
+
+codeutils.reload.done=Settings are re-read
+codeutils.reload.failed=Settings are not re-read, the reason is in the server log

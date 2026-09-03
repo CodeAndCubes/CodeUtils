@@ -1,0 +1,21 @@
+{
+	"modListVersion": 2,
+	"modList": [{
+		"modid": "${modId}",
+		"name": "${modName}",
+		"description": "Служебные мелочи сервера: рассылка по расписанию, команды по времени, перезапуск без дюпа, очистка сущностей, мягкие потолки слотов. Один файл настроек, один таймер, один язык условий.",
+		"version": "${modVersion}",
+		"mcversion": "${minecraftVersion}",
+		"url": "",
+		"updateUrl": "",
+		"authorList": ["MrLeonardos"],
+		"credits": "",
+		"logoFile": "",
+		"screenshots": [],
+		"parent": "",
+		"requiredMods": ["codecore"],
+		"dependencies": ["codecore"],
+		"dependants": [],
+		"useDependencyInformation": true
+	}]
+}

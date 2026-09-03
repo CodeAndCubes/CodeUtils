@@ -1,0 +1,43 @@
+codeutils.command.usage.codeutils=/codeutils <status|reload|broadcast|jobs>
+codeutils.command.usage.restart=/restart <секунды|ЧЧ:ММ|cancel|now>
+codeutils.command.usage.broadcast=/broadcast <текст>
+
+codeutils.status.header=CodeUtils: что сейчас работает
+codeutils.status.on=%s: включено, записей %s
+codeutils.status.off=%s: выключено
+codeutils.status.next=Ближайший момент заданий: %s
+
+codeutils.broadcast.sent=Отправлено, получателей %s
+codeutils.broadcast.nobody=Некому слать: на сервере никого
+
+codeutils.jobs.header=Задания, всего %s
+codeutils.jobs.row=%s: %s, ближайший момент %s
+codeutils.jobs.none=Ни одного работающего задания
+codeutils.jobs.ran=Задание %s выполнено
+codeutils.jobs.failed=Задание %s не сработало: %s
+
+codeutils.clean.counted=Подходящих сущностей: %s
+codeutils.clean.done=Снято сущностей: %s
+codeutils.clean.warn=Через %s секунд уйдут лишние сущности, всего %s
+
+codeutils.restart.armed=Перезапуск через %s
+codeutils.restart.cancelled=Перезапуск отменён
+codeutils.restart.nothing=Перезапуск и не был поставлен
+codeutils.restart.too_late=Отменять поздно: игроков уже выкидывают
+codeutils.restart.warn=Перезапуск через %s
+codeutils.restart.kick=Сервер перезапускается, заходите через минуту
+codeutils.restart.door=Сервер перезапускается, заходите через минуту
+
+codeutils.queue.header=Слоты и очередь
+codeutils.queue.row=%s: ступень %s, стучится с %s
+codeutils.queue.empty=Очередь пуста
+codeutils.queue.refused=Мест нет, вы %s в очереди. Постучитесь снова через %s секунд
+codeutils.queue.tier=ступень %s
+
+codeutils.error.unknown_set=Набора %s нет
+codeutils.error.unknown_rule=Правила %s нет
+codeutils.error.unknown_job=Задания %s нет
+codeutils.error.subsystem_off=%s выключено в utils.toml
+
+codeutils.reload.done=Настройки перечитаны
+codeutils.reload.failed=Настройки не перечитаны, причина в логе сервера
