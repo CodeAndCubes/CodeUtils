@@ -5,30 +5,34 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
-import net.minecraft.command.ICommandSender;
-import net.minecraft.entity.player.EntityPlayerMP;
-
+import com.mrleonardos.codecore.api.actor.PlayerRef;
 import com.mrleonardos.codecore.api.command.CommandContext;
+import com.mrleonardos.codecore.api.command.CommandSender;
+import com.mrleonardos.codecore.api.command.SenderKind;
+import com.mrleonardos.codecore.api.command.SenderPosition;
 
 final class TestCommandContext implements CommandContext {
 
     private final Map<String, Object> values = new LinkedHashMap<>();
     private final List<Sent> replies = new ArrayList<>();
 
+    private CommandSender caller = new TestSender(SenderKind.CONSOLE, "Server");
+
     TestCommandContext set(String name, Object value) {
         values.put(name, value);
         return this;
     }
 
-    @Override
-    public ICommandSender sender() {
-        return null;
+    TestCommandContext by(CommandSender sender) {
+        this.caller = sender;
+        return this;
     }
 
     @Override
-    public EntityPlayerMP player() {
-        return null;
+    public CommandSender caller() {
+        return caller;
     }
 
     @Override
@@ -88,5 +92,51 @@ final class TestCommandContext implements CommandContext {
             this.arguments = Arrays.asList(arguments);
             this.error = error;
         }
+    }
+
+    /** Отправитель без единого типа игры: вид, имя и позиция, больше подписи автора ничего не нужно. */
+    static final class TestSender implements CommandSender {
+
+        private final SenderKind kind;
+        private final String name;
+        private final SenderPosition position;
+
+        TestSender(SenderKind kind, String name) {
+            this(kind, name, null);
+        }
+
+        TestSender(SenderKind kind, String name, SenderPosition position) {
+            this.kind = kind;
+            this.name = name;
+            this.position = position;
+        }
+
+        @Override
+        public SenderKind kind() {
+            return kind;
+        }
+
+        @Override
+        public Optional<PlayerRef> player() {
+            return kind == SenderKind.PLAYER
+                ? Optional.of(PlayerRef.of(java.util.UUID.nameUUIDFromBytes(name.getBytes()), name))
+                : Optional.empty();
+        }
+
+        @Override
+        public String name() {
+            return name;
+        }
+
+        @Override
+        public Optional<SenderPosition> position() {
+            return Optional.ofNullable(position);
+        }
+
+        @Override
+        public void reply(String translationKey, Object... arguments) {}
+
+        @Override
+        public void replyError(String translationKey, Object... arguments) {}
     }
 }

@@ -19,7 +19,6 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.Test;
 
 import com.mrleonardos.codecore.api.command.CommandNode;
-import com.mrleonardos.codecore.api.command.CommandSender;
 import com.mrleonardos.codeutils.api.UtilsRegistry;
 import com.mrleonardos.codeutils.internal.Clocks;
 import com.mrleonardos.codeutils.internal.Conditions;
@@ -274,19 +273,18 @@ class UtilsCommandsTest {
         jobs.arm(0L);
         UtilsArguments arguments = new UtilsArguments(broadcasts::names, jobs::names);
 
-        CommandSender nobody = null;
         assertEquals(
             Arrays.asList("tips"),
             arguments.setName()
-                .suggestions(nobody, "ti"));
+                .suggestions(null, "ti"));
         assertTrue(
             arguments.setName()
-                .suggestions(nobody, "z")
+                .suggestions(null, "z")
                 .isEmpty());
         assertEquals(
             Arrays.asList("save"),
             arguments.jobName()
-                .suggestions(nobody, "sa"));
+                .suggestions(null, "sa"));
     }
 
     private TestCommandService register(boolean withBroadcasts, boolean withJobs) {

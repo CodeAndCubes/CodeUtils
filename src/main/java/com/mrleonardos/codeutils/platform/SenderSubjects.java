@@ -4,7 +4,6 @@ import com.mrleonardos.codecore.api.command.CommandContext;
 import com.mrleonardos.codecore.api.command.CommandSender;
 import com.mrleonardos.codecore.api.command.SenderKind;
 import com.mrleonardos.codecore.api.command.SenderPosition;
-import com.mrleonardos.codecore.platform.Senders;
 import com.mrleonardos.codeutils.internal.command.UtilsSubjects;
 
 public final class SenderSubjects implements UtilsSubjects {
@@ -15,7 +14,7 @@ public final class SenderSubjects implements UtilsSubjects {
 
     @Override
     public String actorOf(CommandContext context) {
-        return actorOf(Senders.of(context.sender()));
+        return actorOf(context.caller());
     }
 
     static String actorOf(CommandSender sender) {
