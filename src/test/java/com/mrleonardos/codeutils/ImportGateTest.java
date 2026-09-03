@@ -15,10 +15,17 @@ class ImportGateTest {
 
     private static final String[] GATED = { "com/mrleonardos/codeutils/api", "com/mrleonardos/codeutils/internal" };
 
+    /**
+     * Кроме типов игры сюда входят два слоя платформы: хелперы ядра и свой собственный. Ссылка на свой
+     * {@code platform} из {@code internal} сборкой не ловится вовсе, а на разрезанном сервере это ровно
+     * та ошибка, ради которой затевались узкие швы.
+     */
     private static final String[] FORBIDDEN = { "net/minecraft", "net/minecraftforge", "cpw/mods", "io/netty",
-        "org/lwjgl", "com/mojang", "com/mrleonardos/codecore/platform" };
+        "org/lwjgl", "com/mojang", "com/mrleonardos/codecore/platform", "com/mrleonardos/codeutils/platform" };
 
-    private static final String[] API_ONLY = { "com/mrleonardos/codeutils/internal" };
+    /** Против api компилируются чужие моды, и в api-джаре нет ни internal, ни platform. */
+    private static final String[] API_ONLY = { "com/mrleonardos/codeutils/internal",
+        "com/mrleonardos/codeutils/platform" };
 
     @Test
     void apiAndInternalHoldNoPlatformTypes() throws IOException {
