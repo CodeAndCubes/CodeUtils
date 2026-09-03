@@ -276,7 +276,7 @@ public final class UtilsCommands {
             }
             if (clean.names()
                 .isEmpty()) {
-                context.reply(UtilsMessages.JOBS_NONE);
+                context.reply(UtilsMessages.CLEAN_NONE);
             }
             return;
         }

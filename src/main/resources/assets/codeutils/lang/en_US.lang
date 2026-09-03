@@ -19,6 +19,7 @@ codeutils.jobs.failed=Job %s did not work: %s
 codeutils.clean.counted=%s: %s matching entity(ies)
 codeutils.clean.done=%s: %s entity(ies) removed
 codeutils.clean.warn=Spare entities go in %s second(s), %s of them
+codeutils.clean.none=No cleanup rule is working
 
 codeutils.restart.armed=Restart in %s
 codeutils.restart.cancelled=Restart is called off

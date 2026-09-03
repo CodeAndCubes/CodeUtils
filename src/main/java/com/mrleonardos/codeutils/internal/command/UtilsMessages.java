@@ -23,6 +23,7 @@ public final class UtilsMessages {
     public static final String CLEAN_COUNTED = "codeutils.clean.counted";
     public static final String CLEAN_DONE = "codeutils.clean.done";
     public static final String CLEAN_WARN = "codeutils.clean.warn";
+    public static final String CLEAN_NONE = "codeutils.clean.none";
 
     public static final String RESTART_ARMED = "codeutils.restart.armed";
     public static final String RESTART_CANCELLED = "codeutils.restart.cancelled";

@@ -19,6 +19,7 @@ codeutils.jobs.failed=Задание %s не сработало: %s
 codeutils.clean.counted=%s: подходящих сущностей %s
 codeutils.clean.done=%s: снято сущностей %s
 codeutils.clean.warn=Через %s секунд уйдут лишние сущности, всего %s
+codeutils.clean.none=Ни одного работающего правила
 
 codeutils.restart.armed=Перезапуск через %s
 codeutils.restart.cancelled=Перезапуск отменён
