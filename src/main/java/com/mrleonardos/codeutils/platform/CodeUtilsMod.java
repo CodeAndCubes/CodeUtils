@@ -20,6 +20,7 @@ import com.mrleonardos.codeutils.api.Subsystems;
 import com.mrleonardos.codeutils.api.UtilsRegistry;
 import com.mrleonardos.codeutils.internal.Conditions;
 import com.mrleonardos.codeutils.internal.ServerFacts;
+import com.mrleonardos.codeutils.internal.SpiNames;
 import com.mrleonardos.codeutils.internal.Ticker;
 import com.mrleonardos.codeutils.internal.UtilsBeat;
 import com.mrleonardos.codeutils.internal.UtilsFiles;
@@ -62,6 +63,7 @@ public final class CodeUtilsMod {
 
     private BroadcastEngine broadcasts;
     private JobEngine jobs;
+    private SpiNames names;
     private Ticker ticker;
 
     @Mod.EventHandler
@@ -87,14 +89,17 @@ public final class CodeUtilsMod {
         Supplier<ZoneId> zone = this::zone;
         Conditions conditions = new Conditions(registry);
         UtilsBeat beat = new UtilsBeat(facts, zone);
+        names = new SpiNames(registry, LOG);
 
         if (broadcastsFile != null) {
             broadcasts = new BroadcastEngine(broadcastsFile::get, registry, conditions, facts, new Random(), LOG);
             beat.add(broadcasts);
+            names.add(broadcasts);
         }
         if (jobsFile != null) {
             jobs = new JobEngine(jobsFile::get, registry, conditions, zone, this::audit, LOG);
             beat.add(jobs);
+            names.add(jobs);
         }
 
         ticker = new Ticker(CodeApi.scheduler(), clock, beat);
@@ -104,6 +109,7 @@ public final class CodeUtilsMod {
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         registry.freeze();
+        names.resolve();
     }
 
     @Mod.EventHandler
@@ -148,6 +154,7 @@ public final class CodeUtilsMod {
 
     private void rearm() {
         long now = clock.getAsLong();
+        names.resolve();
         if (broadcasts != null) {
             broadcasts.arm(now);
         }

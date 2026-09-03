@@ -2,6 +2,7 @@ package com.mrleonardos.codeutils.internal.job;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -19,11 +20,12 @@ import com.mrleonardos.codeutils.api.when.ServerSnapshot;
 import com.mrleonardos.codeutils.api.when.When;
 import com.mrleonardos.codeutils.internal.Clocks;
 import com.mrleonardos.codeutils.internal.Conditions;
+import com.mrleonardos.codeutils.internal.SpiNames;
 import com.mrleonardos.codeutils.internal.Subsystem;
 import com.mrleonardos.codeutils.internal.WhenBlock;
 import com.mrleonardos.codeutils.internal.job.JobsFile.JobBlock;
 
-public final class JobEngine implements Subsystem {
+public final class JobEngine implements Subsystem, SpiNames.Source {
 
     /** Имя встроенного исполнителя: он отдаёт строку менеджеру команд сервера. */
     public static final String SERVER_RUNNER = "server";
@@ -69,7 +71,22 @@ public final class JobEngine implements Subsystem {
             job.previous = now - Math.max(0, block.catchUpSeconds) * Clocks.MILLIS;
             live.put(name, job);
         }
-        conditions.report(whens(), log);
+    }
+
+    @Override
+    public Map<String, String> sinks() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public List<String> conditions() {
+        List<String> named = new ArrayList<>();
+        for (JobBlock block : file.get().jobs.values()) {
+            if (block.enabled && block.when != null && block.when.custom != null) {
+                named.addAll(block.when.custom);
+            }
+        }
+        return named;
     }
 
     @Override
@@ -122,14 +139,6 @@ public final class JobEngine implements Subsystem {
     public String commandOf(String name) {
         Live job = live.get(name);
         return job == null ? "" : job.block.command;
-    }
-
-    public List<When> whens() {
-        List<When> all = new ArrayList<>();
-        for (Live job : live.values()) {
-            all.add(job.when);
-        }
-        return all;
     }
 
     private void retry(Live job, long now) {

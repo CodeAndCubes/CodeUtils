@@ -18,12 +18,13 @@ import com.mrleonardos.codeutils.api.when.ServerSnapshot;
 import com.mrleonardos.codeutils.api.when.When;
 import com.mrleonardos.codeutils.internal.Conditions;
 import com.mrleonardos.codeutils.internal.ServerFacts;
+import com.mrleonardos.codeutils.internal.SpiNames;
 import com.mrleonardos.codeutils.internal.Subsystem;
 import com.mrleonardos.codeutils.internal.WhenBlock;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile.MessageBlock;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile.SetBlock;
 
-public final class BroadcastEngine implements Subsystem {
+public final class BroadcastEngine implements Subsystem, SpiNames.Source {
 
     private static final long MILLIS = 1000L;
 
@@ -63,17 +64,35 @@ public final class BroadcastEngine implements Subsystem {
             BroadcastSink sink = registry.sink(word(block.sink))
                 .orElse(null);
             if (sink == null) {
-                log.warn(
-                    "Broadcast set {} names the sink {}, and no mod registered it, the set stays quiet",
-                    name,
-                    block.sink);
                 continue;
             }
             Live set = new Live(name, block, sink, new Rotation(Rotation.order(block.order, where(name), log), random));
             set.deadline = now + Math.max(0, block.firstDelaySeconds) * MILLIS;
             live.put(name, set);
         }
-        conditions.report(whens(), log);
+    }
+
+    @Override
+    public Map<String, String> sinks() {
+        Map<String, String> named = new LinkedHashMap<>();
+        for (Map.Entry<String, SetBlock> entry : file.get().sets.entrySet()) {
+            SetBlock block = entry.getValue();
+            if (block.enabled && !block.messages.isEmpty()) {
+                named.put(where(entry.getKey()), word(block.sink));
+            }
+        }
+        return named;
+    }
+
+    @Override
+    public List<String> conditions() {
+        List<String> named = new ArrayList<>();
+        for (SetBlock block : file.get().sets.values()) {
+            if (block.enabled && block.when != null && block.when.custom != null) {
+                named.addAll(block.when.custom);
+            }
+        }
+        return named;
     }
 
     @Override
@@ -124,14 +143,6 @@ public final class BroadcastEngine implements Subsystem {
     public long deadlineOf(String name) {
         Live set = live.get(name);
         return set == null ? 0L : set.deadline;
-    }
-
-    public List<When> whens() {
-        List<When> all = new ArrayList<>();
-        for (Live set : live.values()) {
-            all.add(set.when);
-        }
-        return all;
     }
 
     private void fire(Live set) {
