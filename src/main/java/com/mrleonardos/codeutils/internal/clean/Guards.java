@@ -1,0 +1,119 @@
+package com.mrleonardos.codeutils.internal.clean;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+import com.mrleonardos.codeutils.api.UtilsRegistry;
+import com.mrleonardos.codeutils.api.clean.CleanupGuard;
+import com.mrleonardos.codeutils.api.clean.EntityView;
+
+public final class Guards {
+
+    public static final String NAMED = "named";
+    public static final String TAMED = "tamed";
+    public static final String LEASHED = "leashed";
+    public static final String BOSS = "boss";
+    public static final String PERSISTENT = "persistent";
+    public static final String CARRYING = "carrying";
+    public static final String RIDDEN = "ridden";
+    public static final String HANGING = "hanging";
+
+    private static final List<String> BUILT_IN = Collections
+        .unmodifiableList(Arrays.asList(NAMED, TAMED, LEASHED, BOSS, PERSISTENT, CARRYING, RIDDEN, HANGING));
+
+    private final Set<String> ignored;
+    private final Map<String, CleanupGuard> foreign;
+
+    private Guards(Set<String> ignored, Map<String, CleanupGuard> foreign) {
+        this.ignored = ignored;
+        this.foreign = foreign;
+    }
+
+    /** Имена восьми встроенных защит. */
+    public static List<String> builtIn() {
+        return BUILT_IN;
+    }
+
+    /**
+     * Защиты правила: восемь встроенных и все заявленные чужими модами, кроме названных в
+     * {@code ignoreGuards}.
+     */
+    public static Guards of(List<String> ignoreGuards, UtilsRegistry registry) {
+        Set<String> ignored = new LinkedHashSet<>();
+        for (String written : ignoreGuards == null ? new ArrayList<String>() : ignoreGuards) {
+            if (written != null && !written.trim()
+                .isEmpty()) {
+                ignored.add(
+                    written.trim()
+                        .toLowerCase(Locale.ROOT));
+            }
+        }
+        Map<String, CleanupGuard> foreign = new LinkedHashMap<>();
+        for (Map.Entry<String, CleanupGuard> named : registry.guards()
+            .entrySet()) {
+            String key = named.getKey()
+                .toLowerCase(Locale.ROOT);
+            if (!ignored.contains(key)) {
+                foreign.put(named.getKey(), named.getValue());
+            }
+        }
+        return new Guards(ignored, foreign);
+    }
+
+    /** Имена из {@code ignoreGuards}, которых нет ни среди встроенных, ни в реестре. */
+    public List<String> unknown(UtilsRegistry registry) {
+        List<String> missing = new ArrayList<>();
+        for (String name : ignored) {
+            if (!BUILT_IN.contains(name) && !registry.guard(name)
+                .isPresent()) {
+                missing.add(name);
+            }
+        }
+        return missing;
+    }
+
+    public boolean ignores(String guard) {
+        return ignored.contains(guard);
+    }
+
+    /** Защищена ли сущность хотя бы одной незанятой защитой. */
+    public boolean protects(EntityView entity) {
+        if (!ignored.contains(NAMED) && entity.named()) {
+            return true;
+        }
+        if (!ignored.contains(TAMED) && entity.tamed()) {
+            return true;
+        }
+        if (!ignored.contains(LEASHED) && entity.leashed()) {
+            return true;
+        }
+        if (!ignored.contains(BOSS) && entity.boss()) {
+            return true;
+        }
+        if (!ignored.contains(PERSISTENT) && entity.persistent()) {
+            return true;
+        }
+        if (!ignored.contains(CARRYING) && entity.carrying()) {
+            return true;
+        }
+        if (!ignored.contains(RIDDEN) && entity.ridden()) {
+            return true;
+        }
+        if (!ignored.contains(HANGING) && entity.hanging()) {
+            return true;
+        }
+        for (CleanupGuard guard : foreign.values()) {
+            if (guard.protects(entity)) {
+                return true;
+            }
+        }
+        return false;
+    }
+}

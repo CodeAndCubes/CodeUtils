@@ -32,6 +32,10 @@ import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile.MessageBlock;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile.SetBlock;
 import com.mrleonardos.codeutils.internal.broadcast.RecordingSink;
+import com.mrleonardos.codeutils.internal.clean.CleanupEngine;
+import com.mrleonardos.codeutils.internal.clean.CleanupFile;
+import com.mrleonardos.codeutils.internal.clean.FakeEntity;
+import com.mrleonardos.codeutils.internal.clean.FakeSweep;
 import com.mrleonardos.codeutils.internal.job.JobEngine;
 import com.mrleonardos.codeutils.internal.job.JobsFile;
 import com.mrleonardos.codeutils.internal.job.JobsFile.JobBlock;
@@ -54,6 +58,8 @@ class UtilsCommandsTest {
     private final BroadcastsFile broadcastsFile = new BroadcastsFile();
     private final JobsFile jobsFile = new JobsFile();
     private final RestartFile restartFile = new RestartFile();
+    private final CleanupFile cleanupFile = new CleanupFile();
+    private final FakeSweep sweep = new FakeSweep();
     private final CommandRoots roots = new CommandRoots();
 
     private boolean reloaded;
@@ -136,7 +142,7 @@ class UtilsCommandsTest {
 
     @Test
     void statusNamesEverySubsystemAndTheNearestJobMoment() {
-        TestCommandService commands = register(true, true, true);
+        TestCommandService commands = register(true, true, true, true);
         TestCommandContext context = new TestCommandContext();
 
         run(commands, "status", context);
@@ -144,6 +150,7 @@ class UtilsCommandsTest {
         assertEquals(
             Arrays.asList(
                 UtilsMessages.STATUS_HEADER,
+                UtilsMessages.STATUS_ON,
                 UtilsMessages.STATUS_ON,
                 UtilsMessages.STATUS_ON,
                 UtilsMessages.STATUS_ON,
@@ -164,6 +171,7 @@ class UtilsCommandsTest {
                 UtilsMessages.STATUS_HEADER,
                 UtilsMessages.STATUS_OFF,
                 UtilsMessages.STATUS_ON,
+                UtilsMessages.STATUS_OFF,
                 UtilsMessages.STATUS_OFF,
                 UtilsMessages.STATUS_NEXT),
             context.keys(),
@@ -283,7 +291,7 @@ class UtilsCommandsTest {
         JobEngine jobs = jobs();
         broadcasts.arm(0L);
         jobs.arm(0L);
-        UtilsArguments arguments = new UtilsArguments(broadcasts::names, jobs::names);
+        UtilsArguments arguments = new UtilsArguments(broadcasts::names, jobs::names, ArrayList::new);
 
         assertEquals(
             Arrays.asList("tips"),
@@ -388,7 +396,7 @@ class UtilsCommandsTest {
 
     @Test
     void theSuggestionsOfTheRestartArgumentHoldItsTwoWords() {
-        UtilsArguments arguments = new UtilsArguments(ArrayList::new, ArrayList::new);
+        UtilsArguments arguments = new UtilsArguments(ArrayList::new, ArrayList::new, ArrayList::new);
 
         assertEquals(
             Arrays.asList("cancel"),
@@ -406,14 +414,90 @@ class UtilsCommandsTest {
             .run(context);
     }
 
+    @Test
+    void theCleanBranchAppearsOnlyWithItsSubsystem() {
+        assertEquals(
+            Arrays.asList("status", "reload", "broadcast", "jobs", "clean", "restart"),
+            TestCommandService.childNames(register(true, true, true, true).root(CommandRoots.CODEUTILS)));
+        assertFalse(
+            TestCommandService.childNames(register(true, true, true, false).root(CommandRoots.CODEUTILS))
+                .contains("clean"));
+    }
+
+    @Test
+    void cleanWithoutAnyWordCountsEveryRuleAndRemovesNothing() {
+        sweep.add(FakeEntity.item(), FakeEntity.item());
+        TestCommandService commands = register(true, true, false, true);
+        TestCommandContext context = new TestCommandContext();
+
+        run(commands, "clean", context);
+
+        assertEquals(
+            Arrays.asList(UtilsMessages.CLEAN_COUNTED),
+            context.keys(),
+            "по строке на каждое работающее правило, а заводское mobs выключено");
+        assertEquals(0, sweep.removeCalls(), "осмотр ничего не снимает");
+    }
+
+    @Test
+    void cleanWithNowRunsThePassAndSaysHowManyWereRemoved() {
+        sweep.add(FakeEntity.item(), FakeEntity.item());
+        TestCommandService commands = register(true, true, false, true);
+        TestCommandContext context = new TestCommandContext().set("rule", CleanupFile.DROPS)
+            .set("mode", "now");
+
+        run(commands, "clean", context);
+
+        assertEquals(UtilsMessages.CLEAN_DONE, context.last().key);
+        assertEquals(CleanupFile.DROPS, context.last().arguments.get(0));
+        assertEquals(Integer.valueOf(2), context.last().arguments.get(1));
+        assertEquals(0, sweep.alive());
+    }
+
+    @Test
+    void cleanOfOneRuleWithoutNowOnlyCounts() {
+        sweep.add(FakeEntity.item());
+        TestCommandService commands = register(true, true, false, true);
+        TestCommandContext context = new TestCommandContext().set("rule", CleanupFile.DROPS);
+
+        run(commands, "clean", context);
+
+        assertEquals(UtilsMessages.CLEAN_COUNTED, context.last().key);
+        assertEquals(Integer.valueOf(1), context.last().arguments.get(1));
+        assertEquals(1, sweep.alive());
+    }
+
+    @Test
+    void aRuleThatIsNotInTheFileAnswersUnknownRule() {
+        TestCommandService commands = register(true, true, false, true);
+        TestCommandContext unknown = new TestCommandContext().set("rule", "nether");
+
+        run(commands, "clean", unknown);
+
+        assertEquals(UtilsMessages.ERROR_UNKNOWN_RULE, unknown.last().key);
+        assertTrue(unknown.last().error);
+
+        TestCommandContext off = new TestCommandContext().set("rule", CleanupFile.MOBS);
+
+        run(commands, "clean", off);
+
+        assertEquals(UtilsMessages.ERROR_SUBSYSTEM_OFF, off.last().key, "заводское правило mobs выключено");
+    }
+
     private TestCommandService register(boolean withBroadcasts, boolean withJobs) {
-        return register(withBroadcasts, withJobs, false);
+        return register(withBroadcasts, withJobs, false, false);
     }
 
     private TestCommandService register(boolean withBroadcasts, boolean withJobs, boolean withRestart) {
+        return register(withBroadcasts, withJobs, withRestart, false);
+    }
+
+    private TestCommandService register(boolean withBroadcasts, boolean withJobs, boolean withRestart,
+        boolean withClean) {
         BroadcastEngine broadcasts = withBroadcasts ? broadcasts() : null;
         JobEngine jobs = withJobs ? jobs() : null;
         RestartPlan restart = withRestart ? restart() : null;
+        CleanupEngine clean = withClean ? clean() : null;
         long now = at("2026-09-03T03:00:00");
         if (broadcasts != null) {
             broadcasts.arm(now);
@@ -421,9 +505,13 @@ class UtilsCommandsTest {
         if (jobs != null) {
             jobs.arm(now);
         }
+        if (clean != null) {
+            clean.arm(now);
+        }
         UtilsArguments arguments = new UtilsArguments(
             () -> broadcasts == null ? new ArrayList<>() : broadcasts.names(),
-            () -> jobs == null ? new ArrayList<>() : jobs.names());
+            () -> jobs == null ? new ArrayList<>() : jobs.names(),
+            () -> clean == null ? new ArrayList<>() : clean.names());
         UtilsMaintenance maintenance = new UtilsMaintenance(() -> reloaded = true, LOG);
         TestCommandService commands = new TestCommandService();
         new UtilsCommands(
@@ -431,6 +519,7 @@ class UtilsCommandsTest {
             () -> ZONE,
             broadcasts,
             jobs,
+            clean,
             restart,
             arguments,
             context -> "console",
@@ -438,6 +527,18 @@ class UtilsCommandsTest {
             () -> now,
             LOG).register(commands);
         return commands;
+    }
+
+    private CleanupEngine clean() {
+        return new CleanupEngine(
+            () -> cleanupFile,
+            registry,
+            new Conditions(registry),
+            sweep,
+            new Announcer(facts, new FakeTexts()),
+            () -> 0,
+            () -> Boolean.FALSE,
+            LOG);
     }
 
     private RestartPlan restart() {

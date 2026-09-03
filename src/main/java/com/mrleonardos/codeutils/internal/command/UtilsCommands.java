@@ -16,12 +16,14 @@ import com.mrleonardos.codecore.api.command.CommandNode;
 import com.mrleonardos.codecore.api.command.CommandService;
 import com.mrleonardos.codecore.api.util.Durations;
 import com.mrleonardos.codeutils.api.Subsystems;
+import com.mrleonardos.codeutils.api.clean.CleanupReport;
 import com.mrleonardos.codeutils.api.restart.RestartReason;
 import com.mrleonardos.codeutils.api.run.RunOutcome;
 import com.mrleonardos.codeutils.internal.Clocks;
 import com.mrleonardos.codeutils.internal.Moments;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastEngine;
 import com.mrleonardos.codeutils.internal.broadcast.Sent;
+import com.mrleonardos.codeutils.internal.clean.CleanupEngine;
 import com.mrleonardos.codeutils.internal.job.JobEngine;
 import com.mrleonardos.codeutils.internal.restart.RestartPlan;
 
@@ -31,6 +33,8 @@ public final class UtilsCommands {
     private static final String NAME = "name";
     private static final String TEXT = "text";
     private static final String WHEN = "when";
+    private static final String RULE = "rule";
+    private static final String MODE = "mode";
     private static final String NEVER = "-";
 
     private static final String CANCEL = "cancel";
@@ -40,6 +44,7 @@ public final class UtilsCommands {
     private final Supplier<ZoneId> zone;
     private final BroadcastEngine broadcasts;
     private final JobEngine jobs;
+    private final CleanupEngine clean;
     private final RestartPlan restart;
     private final UtilsArguments arguments;
     private final UtilsSubjects subjects;
@@ -48,12 +53,13 @@ public final class UtilsCommands {
     private final Logger log;
 
     public UtilsCommands(Supplier<CommandRoots> roots, Supplier<ZoneId> zone, BroadcastEngine broadcasts,
-        JobEngine jobs, RestartPlan restart, UtilsArguments arguments, UtilsSubjects subjects,
+        JobEngine jobs, CleanupEngine clean, RestartPlan restart, UtilsArguments arguments, UtilsSubjects subjects,
         UtilsMaintenance maintenance, LongSupplier clock, Logger log) {
         this.roots = roots;
         this.zone = zone;
         this.broadcasts = broadcasts;
         this.jobs = jobs;
+        this.clean = clean;
         this.restart = restart;
         this.arguments = arguments;
         this.subjects = subjects;
@@ -115,6 +121,14 @@ public final class UtilsCommands {
                             .arg(NAME, arguments.jobName())
                             .executes(this::runJob)));
         }
+        if (clean != null) {
+            root.child(
+                CommandNode.literal("clean")
+                    .permission(Nodes.ADMIN_CLEAN)
+                    .optionalArg(RULE, arguments.ruleName())
+                    .optionalArg(MODE, arguments.cleanMode())
+                    .executes(this::clean));
+        }
         if (restart != null) {
             root.child(restartNode(CommandRoots.RESTART));
         }
@@ -133,6 +147,7 @@ public final class UtilsCommands {
         context.reply(UtilsMessages.STATUS_HEADER);
         line(context, Subsystems.BROADCASTS, broadcasts == null ? null : String.valueOf(broadcasts.workingSets()));
         line(context, Subsystems.JOBS, jobs == null ? null : String.valueOf(jobs.workingJobs()));
+        line(context, Subsystems.CLEANUP, clean == null ? null : String.valueOf(clean.workingRules()));
         line(context, Subsystems.RESTART, restart == null ? null : restartLine());
         if (jobs != null) {
             long soonest = soonest();
@@ -215,6 +230,42 @@ public final class UtilsCommands {
             return;
         }
         context.replyError(UtilsMessages.JOBS_FAILED, name, outcome.reason());
+    }
+
+    private void clean(CommandContext context) {
+        String name = context.getOrDefault(RULE, "");
+        boolean straight = NOW.equalsIgnoreCase(context.getOrDefault(MODE, ""));
+        if (name.isEmpty()) {
+            for (String rule : clean.names()) {
+                counted(context, clean.count(rule));
+            }
+            if (clean.names()
+                .isEmpty()) {
+                context.reply(UtilsMessages.JOBS_NONE);
+            }
+            return;
+        }
+        if (!clean.knows(name)) {
+            context.replyError(
+                clean.written(name) ? UtilsMessages.ERROR_SUBSYSTEM_OFF : UtilsMessages.ERROR_UNKNOWN_RULE,
+                name);
+            return;
+        }
+        if (!straight) {
+            counted(context, clean.count(name));
+            return;
+        }
+        CleanupReport pass = clean.clean(name);
+        context.reply(UtilsMessages.CLEAN_DONE, pass.rule(), Integer.valueOf(pass.removed()));
+        log.info(
+            "Cleanup rule {} was run by hand by {}, {} entity(ies) removed",
+            name,
+            subjects.actorOf(context),
+            Integer.valueOf(pass.removed()));
+    }
+
+    private static void counted(CommandContext context, CleanupReport pass) {
+        context.reply(UtilsMessages.CLEAN_COUNTED, pass.rule(), Integer.valueOf(pass.matched()));
     }
 
     private void restart(CommandContext context) {

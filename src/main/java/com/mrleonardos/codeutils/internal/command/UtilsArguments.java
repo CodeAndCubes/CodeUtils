@@ -13,10 +13,12 @@ public final class UtilsArguments {
 
     private final Supplier<List<String>> sets;
     private final Supplier<List<String>> jobs;
+    private final Supplier<List<String>> rules;
 
-    public UtilsArguments(Supplier<List<String>> sets, Supplier<List<String>> jobs) {
+    public UtilsArguments(Supplier<List<String>> sets, Supplier<List<String>> jobs, Supplier<List<String>> rules) {
         this.sets = sets;
         this.jobs = jobs;
+        this.rules = rules;
     }
 
     public ArgumentType<String> setName() {
@@ -25,6 +27,14 @@ public final class UtilsArguments {
 
     public ArgumentType<String> jobName() {
         return named(jobs);
+    }
+
+    public ArgumentType<String> ruleName() {
+        return named(rules);
+    }
+
+    public ArgumentType<String> cleanMode() {
+        return named(() -> Arrays.asList("now"));
     }
 
     public ArgumentType<String> restartWhen() {

@@ -16,8 +16,8 @@ codeutils.jobs.none=No job is working
 codeutils.jobs.ran=Job %s has run
 codeutils.jobs.failed=Job %s did not work: %s
 
-codeutils.clean.counted=Matching entities: %s
-codeutils.clean.done=Entities removed: %s
+codeutils.clean.counted=%s: %s matching entity(ies)
+codeutils.clean.done=%s: %s entity(ies) removed
 codeutils.clean.warn=Spare entities go in %s second(s), %s of them
 
 codeutils.restart.armed=Restart in %s

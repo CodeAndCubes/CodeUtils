@@ -16,8 +16,8 @@ codeutils.jobs.none=Ни одного работающего задания
 codeutils.jobs.ran=Задание %s выполнено
 codeutils.jobs.failed=Задание %s не сработало: %s
 
-codeutils.clean.counted=Подходящих сущностей: %s
-codeutils.clean.done=Снято сущностей: %s
+codeutils.clean.counted=%s: подходящих сущностей %s
+codeutils.clean.done=%s: снято сущностей %s
 codeutils.clean.warn=Через %s секунд уйдут лишние сущности, всего %s
 
 codeutils.restart.armed=Перезапуск через %s

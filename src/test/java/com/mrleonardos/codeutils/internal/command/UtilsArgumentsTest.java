@@ -28,7 +28,8 @@ class UtilsArgumentsTest {
 
     private final UtilsArguments arguments = new UtilsArguments(
         () -> Arrays.asList("tips", "links"),
-        () -> Arrays.asList("save", "night-clean"));
+        () -> Arrays.asList("save", "night-clean"),
+        () -> Arrays.asList("drops", "mobs"));
 
     @Test
     void theSetNameOffersEverySetOnAnEmptyWord() {
@@ -37,6 +38,15 @@ class UtilsArgumentsTest {
 
         assertFalse(offered.isEmpty(), "подсказки имён наборов замолчали");
         assertEquals(Arrays.asList("tips", "links"), offered);
+    }
+
+    @Test
+    void theRuleNameOffersEveryRuleOnAnEmptyWord() {
+        List<String> offered = arguments.ruleName()
+            .suggestions(NOBODY, "");
+
+        assertFalse(offered.isEmpty(), "подсказки имён правил очистки замолчали");
+        assertEquals(Arrays.asList("drops", "mobs"), offered);
     }
 
     @Test
@@ -78,7 +88,10 @@ class UtilsArgumentsTest {
 
     @Test
     void anEmptyListOfNamesOffersNothingAndDoesNotFall() {
-        UtilsArguments empty = new UtilsArguments(Collections::emptyList, Collections::emptyList);
+        UtilsArguments empty = new UtilsArguments(
+            Collections::emptyList,
+            Collections::emptyList,
+            Collections::emptyList);
 
         assertTrue(
             empty.setName()
@@ -86,6 +99,10 @@ class UtilsArgumentsTest {
                 .isEmpty());
         assertTrue(
             empty.jobName()
+                .suggestions(NOBODY, "")
+                .isEmpty());
+        assertTrue(
+            empty.ruleName()
                 .suggestions(NOBODY, "")
                 .isEmpty());
     }

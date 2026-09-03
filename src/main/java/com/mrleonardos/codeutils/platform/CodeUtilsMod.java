@@ -30,6 +30,8 @@ import com.mrleonardos.codeutils.internal.UtilsTexts;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastEngine;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile;
 import com.mrleonardos.codeutils.internal.broadcast.LogSink;
+import com.mrleonardos.codeutils.internal.clean.CleanupEngine;
+import com.mrleonardos.codeutils.internal.clean.CleanupFile;
 import com.mrleonardos.codeutils.internal.command.CommandRoots;
 import com.mrleonardos.codeutils.internal.command.UtilsArguments;
 import com.mrleonardos.codeutils.internal.command.UtilsCommands;
@@ -72,9 +74,11 @@ public final class CodeUtilsMod {
     private ConfigFile<BroadcastsFile> broadcastsFile;
     private ConfigFile<JobsFile> jobsFile;
     private ConfigFile<RestartFile> restartFile;
+    private ConfigFile<CleanupFile> cleanupFile;
 
     private BroadcastEngine broadcasts;
     private JobEngine jobs;
+    private CleanupEngine clean;
     private RestartPlan restart;
     private SpiNames names;
     private Ticker ticker;
@@ -94,6 +98,7 @@ public final class CodeUtilsMod {
         broadcastsFile = files.broadcasts();
         jobsFile = files.jobs();
         restartFile = files.restart();
+        cleanupFile = files.cleanup();
 
         registry.addSink(BroadcastsFile.SINK_CHAT, new ChatSink());
         registry.addSink(BroadcastsFile.SINK_LOG, new LogSink(LOG));
@@ -137,6 +142,19 @@ public final class CodeUtilsMod {
             jobs = new JobEngine(jobsFile::get, registry, conditions, facts, zone, this::audit, LOG);
             beat.add(jobs);
             names.add(jobs);
+        }
+        if (cleanupFile != null) {
+            clean = new CleanupEngine(
+                cleanupFile::get,
+                registry,
+                conditions,
+                new WorldSweep(),
+                new Announcer(facts, texts),
+                this::slowPassMillis,
+                this::audit,
+                LOG);
+            beat.add(clean);
+            names.add(clean);
         }
 
         ticker = new Ticker(CodeApi.scheduler(), clock, beat);
@@ -183,16 +201,18 @@ public final class CodeUtilsMod {
     }
 
     private void commands() {
-        UtilsArguments arguments = new UtilsArguments(this::setNames, this::jobNames);
+        UtilsArguments arguments = new UtilsArguments(this::setNames, this::jobNames, this::ruleNames);
         UtilsMaintenance maintenance = new UtilsMaintenance(this::rearm, LOG).watch(settings)
             .watch(broadcastsFile)
             .watch(jobsFile)
-            .watch(restartFile);
+            .watch(restartFile)
+            .watch(cleanupFile);
         new UtilsCommands(
             roots::get,
             this::zone,
             broadcasts,
             jobs,
+            clean,
             restart,
             arguments,
             new SenderSubjects(),
@@ -210,6 +230,9 @@ public final class CodeUtilsMod {
         }
         if (jobs != null) {
             jobs.arm(now);
+        }
+        if (clean != null) {
+            clean.arm(now);
         }
         if (restart != null) {
             restart.arm(now);
@@ -245,6 +268,9 @@ public final class CodeUtilsMod {
         if (jobs != null) {
             live.add(Subsystems.JOBS + " (" + jobs.workingJobs() + ")");
         }
+        if (clean != null) {
+            live.add(Subsystems.CLEANUP + " (" + clean.workingRules() + ")");
+        }
         if (restart != null) {
             live.add(Subsystems.RESTART);
         }
@@ -261,6 +287,15 @@ public final class CodeUtilsMod {
 
     private List<String> jobNames() {
         return jobs == null ? new ArrayList<>() : jobs.names();
+    }
+
+    private List<String> ruleNames() {
+        return clean == null ? new ArrayList<>() : clean.names();
+    }
+
+    private int slowPassMillis() {
+        return settings.get()
+            .slowPassMillis();
     }
 
     private ZoneId zone() {

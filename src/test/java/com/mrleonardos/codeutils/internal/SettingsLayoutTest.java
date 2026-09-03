@@ -19,14 +19,20 @@ import org.junit.jupiter.api.Test;
 
 import com.mrleonardos.codecore.api.config.Comment;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile;
+import com.mrleonardos.codeutils.internal.clean.CleanupFile;
 import com.mrleonardos.codeutils.internal.command.CommandRoots;
 import com.mrleonardos.codeutils.internal.job.JobsFile;
 import com.mrleonardos.codeutils.internal.restart.RestartFile;
 
 class SettingsLayoutTest {
 
-    private static final List<Class<?>> FILES = Arrays
-        .asList(UtilsSettings.class, CommandRoots.class, BroadcastsFile.class, JobsFile.class, RestartFile.class);
+    private static final List<Class<?>> FILES = Arrays.asList(
+        UtilsSettings.class,
+        CommandRoots.class,
+        BroadcastsFile.class,
+        JobsFile.class,
+        RestartFile.class,
+        CleanupFile.class);
 
     /**
      * Элементы массива таблиц полями секции не описаны, поэтому комментарий к ним ядро поставить не
@@ -111,6 +117,27 @@ class SettingsLayoutTest {
             names(WhenBlock.class));
         assertEquals(WhenBlock.class, fieldType(BroadcastsFile.SetBlock.class, "when"));
         assertEquals(WhenBlock.class, fieldType(JobsFile.JobBlock.class, "when"));
+    }
+
+    @Test
+    void aCleanupRuleHoldsTwelveKeys() {
+        assertEquals(
+            new TreeSet<>(
+                Arrays.asList(
+                    "chunkThreshold",
+                    "dimensions",
+                    "enabled",
+                    "ignoreGuards",
+                    "intervalSeconds",
+                    "maxRemovals",
+                    "minAgeSeconds",
+                    "types",
+                    "warnSeconds",
+                    "warnSink",
+                    "when",
+                    "worldThreshold")),
+            names(CleanupFile.RuleBlock.class));
+        assertEquals(WhenBlock.class, fieldType(CleanupFile.RuleBlock.class, "when"));
     }
 
     @Test

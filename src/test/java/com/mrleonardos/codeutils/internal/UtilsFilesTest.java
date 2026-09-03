@@ -16,6 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 import com.mrleonardos.codecore.api.config.ConfigService;
 import com.mrleonardos.codeutils.TestConfigs;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile;
+import com.mrleonardos.codeutils.internal.clean.CleanupFile;
 import com.mrleonardos.codeutils.internal.command.CommandRoots;
 import com.mrleonardos.codeutils.internal.job.JobsFile;
 import com.mrleonardos.codeutils.internal.restart.RestartFile;
@@ -36,9 +37,11 @@ class UtilsFilesTest {
         assertTrue(Files.exists(folder.resolve(BroadcastsFile.FILE_NAME)), BroadcastsFile.FILE_NAME);
         assertTrue(Files.exists(folder.resolve(JobsFile.FILE_NAME)), JobsFile.FILE_NAME);
         assertTrue(Files.exists(folder.resolve(RestartFile.FILE_NAME)), RestartFile.FILE_NAME);
+        assertTrue(Files.exists(folder.resolve(CleanupFile.FILE_NAME)), CleanupFile.FILE_NAME);
         assertNotNull(files.broadcasts());
         assertNotNull(files.jobs());
         assertNotNull(files.restart());
+        assertNotNull(files.cleanup());
     }
 
     @Test
@@ -51,7 +54,8 @@ class UtilsFilesTest {
             "[on]",
             "broadcasts = false",
             "jobs = false",
-            "restart = false");
+            "restart = false",
+            "cleanup = false");
 
         UtilsFiles files = UtilsFiles.open(TestConfigs.of(config));
 
@@ -59,10 +63,12 @@ class UtilsFilesTest {
         assertFalse(Files.exists(folder.resolve(BroadcastsFile.FILE_NAME)), "выключенная рассылка файла не заводит");
         assertFalse(Files.exists(folder.resolve(JobsFile.FILE_NAME)), "выключенные задания файла не заводят");
         assertFalse(Files.exists(folder.resolve(RestartFile.FILE_NAME)), "выключенный перезапуск файла не заводит");
+        assertFalse(Files.exists(folder.resolve(CleanupFile.FILE_NAME)), "выключенная очистка файла не заводит");
         assertTrue(Files.exists(folder.resolve(CommandRoots.FILE_NAME)), "корни команд создаются всегда");
         assertNull(files.broadcasts());
         assertNull(files.jobs());
         assertNull(files.restart());
+        assertNull(files.cleanup());
     }
 
     @Test
