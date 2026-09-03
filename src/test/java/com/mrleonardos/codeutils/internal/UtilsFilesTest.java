@@ -94,18 +94,29 @@ class UtilsFilesTest {
     }
 
     @Test
-    void aSettingsFileWrittenByHandSurvivesTheReading(@TempDir Path root) {
+    void aFileTheModWroteIsNotTouchedOnTheNextStart(@TempDir Path root) {
         Path config = root.resolve("config");
         Path settings = TestConfigs.utils(config)
             .resolve(SETTINGS_FILE);
+        UtilsFiles.open(TestConfigs.of(config));
+        String first = TestConfigs.read(settings);
+
+        UtilsFiles.open(TestConfigs.of(config));
+
+        assertEquals(first, TestConfigs.read(settings), "второй запуск не меняет в файле ни строки");
+    }
+
+    @Test
+    void aValueChangedByHandSurvivesTheReading(@TempDir Path root) {
+        Path config = root.resolve("config");
+        Path settings = TestConfigs.utils(config)
+            .resolve(SETTINGS_FILE);
+        UtilsFiles.open(TestConfigs.of(config));
         TestConfigs.write(
             settings,
-            "schemaVersion = 1",
-            "# моя строка",
-            "timezone = \"Europe/Moscow\"",
-            "[on]",
-            "broadcasts = true",
-            "jobs = false");
+            TestConfigs.read(settings)
+                .replace("timezone = \"system\"", "timezone = \"Europe/Moscow\"")
+                .split("\n"));
 
         UtilsFiles files = UtilsFiles.open(TestConfigs.of(config));
 
@@ -116,8 +127,51 @@ class UtilsFilesTest {
                 .zone());
         assertTrue(
             TestConfigs.read(settings)
+                .contains("Europe/Moscow"),
+            "значение человека остаётся в файле");
+    }
+
+    @Test
+    void aLineOfHisOwnAtTheEndOfTheFileStaysWhereTheManPutIt(@TempDir Path root) {
+        Path config = root.resolve("config");
+        Path settings = TestConfigs.utils(config)
+            .resolve(SETTINGS_FILE);
+        UtilsFiles.open(TestConfigs.of(config));
+        TestConfigs.write(settings, (TestConfigs.read(settings) + "\n# моя строка\n").split("\n"));
+
+        UtilsFiles.open(TestConfigs.of(config));
+
+        assertTrue(
+            TestConfigs.read(settings)
                 .contains("моя строка"),
-            "комментарий человека остаётся на месте");
+            "своя строка человека в полном файле остаётся на месте");
+    }
+
+    @Test
+    void anIncompleteSettingsFileGetsTheMissingKeysAndKeepsTheValuesOfTheMan(@TempDir Path root) {
+        Path config = root.resolve("config");
+        Path settings = TestConfigs.utils(config)
+            .resolve(SETTINGS_FILE);
+        TestConfigs.write(
+            settings,
+            "schemaVersion = 1",
+            "timezone = \"Europe/Moscow\"",
+            "[on]",
+            "broadcasts = true",
+            "jobs = false");
+
+        UtilsFiles files = UtilsFiles.open(TestConfigs.of(config));
+        UtilsSettings written = files.settings()
+            .get();
+
+        assertEquals(ZoneId.of("Europe/Moscow"), written.zone(), "пояс человека на месте");
+        assertFalse(written.on.jobs, "выключенные им задания на месте");
+        assertTrue(written.on.cleanup, "недостающий ключ пришёл заводским");
+
+        String text = TestConfigs.read(settings);
+
+        assertTrue(text.contains("cleanup = true"), text);
+        assertTrue(text.contains("[log]"), () -> "секция, которой не было, дописана целиком:\n" + text);
     }
 
     @Test
