@@ -1,9 +1,12 @@
 package com.mrleonardos.codeutils.platform;
 
-import net.minecraft.util.StatCollector;
-
+import com.mrleonardos.codecore.platform.ServerTexts;
 import com.mrleonardos.codeutils.internal.UtilsTexts;
 
+/**
+ * Строку собирает сервер на языке из главного файла линейки: рассылка и отказ на входе уходят игроку
+ * готовым текстом, а клиента с нашим файлом перевода у него нет.
+ */
 public final class GameTexts implements UtilsTexts {
 
     @Override
@@ -11,7 +14,6 @@ public final class GameTexts implements UtilsTexts {
         if (key == null || key.isEmpty()) {
             return "";
         }
-        return arguments == null || arguments.length == 0 ? StatCollector.translateToLocal(key)
-            : StatCollector.translateToLocalFormatted(key, arguments);
+        return ServerTexts.format(key, arguments);
     }
 }
