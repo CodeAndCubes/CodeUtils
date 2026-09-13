@@ -6,7 +6,7 @@
 		"description": "Служебные мелочи сервера: рассылка по расписанию, команды по времени, перезапуск без дюпа, очистка сущностей, мягкие потолки слотов. Один файл настроек, один таймер, один язык условий.",
 		"version": "${modVersion}",
 		"mcversion": "${minecraftVersion}",
-		"url": "",
+		"url": "https://github.com/CodeAndCubes/CodeUtils",
 		"updateUrl": "",
 		"authorList": ["MrLeonardos"],
 		"credits": "",
