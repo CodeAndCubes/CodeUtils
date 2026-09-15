@@ -22,6 +22,7 @@ codeutils.clean.warn=Через %s секунд уйдут лишние сущн
 codeutils.clean.none=Ни одного работающего правила
 
 codeutils.restart.armed=Перезапуск через %s
+codeutils.restart.now=Перезапуск начинается
 codeutils.restart.cancelled=Перезапуск отменён
 codeutils.restart.nothing=Перезапуск и не был поставлен
 codeutils.restart.too_late=Отменять поздно: игроков уже выкидывают
@@ -43,4 +44,4 @@ codeutils.error.unknown_job=Задания %s нет
 codeutils.error.subsystem_off=%s выключено в своём файле настроек
 
 codeutils.reload.done=Настройки перечитаны
-codeutils.reload.failed=Настройки не перечитаны, причина в логе сервера
+codeutils.reload.failed=Настройки не перечитаны до конца, остановка на %s

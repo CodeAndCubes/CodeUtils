@@ -25,7 +25,8 @@ public final class When {
     /** Минута, которой не бывает: ей помечено снятое окно времени. */
     public static final int NO_MINUTE = -1;
 
-    private static final int MINUTES_IN_DAY = 24 * 60;
+    /** Минут в сутках: верхняя граница минуты от полуночи. */
+    public static final int MINUTES_IN_DAY = 24 * 60;
 
     private static final When ALWAYS = builder().build();
 

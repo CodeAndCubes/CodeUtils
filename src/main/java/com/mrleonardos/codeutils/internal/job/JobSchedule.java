@@ -2,7 +2,6 @@ package com.mrleonardos.codeutils.internal.job;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
@@ -27,19 +26,7 @@ public final class JobSchedule {
     }
 
     public static JobSchedule of(List<String> at, int everySeconds, String where, Logger log, Supplier<ZoneId> zone) {
-        List<Integer> found = new ArrayList<>();
-        for (String written : at == null ? new ArrayList<String>() : at) {
-            int minute = Moments.parse(written);
-            if (minute == Moments.NONE) {
-                log.warn("{}: at holds {}, which is not a moment of the form HH:MM, it is skipped", where, written);
-                continue;
-            }
-            if (!found.contains(Integer.valueOf(minute))) {
-                found.add(minute);
-            }
-        }
-        Collections.sort(found);
-        return new JobSchedule(found, Math.max(0, everySeconds), zone);
+        return new JobSchedule(Moments.moments(at, where, log), Math.max(0, everySeconds), zone);
     }
 
     public void arm(long now) {

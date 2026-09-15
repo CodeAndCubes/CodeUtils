@@ -26,6 +26,7 @@ public final class UtilsMessages {
     public static final String CLEAN_NONE = "codeutils.clean.none";
 
     public static final String RESTART_ARMED = "codeutils.restart.armed";
+    public static final String RESTART_NOW = "codeutils.restart.now";
     public static final String RESTART_CANCELLED = "codeutils.restart.cancelled";
     public static final String RESTART_NOTHING = "codeutils.restart.nothing";
     public static final String RESTART_TOO_LATE = "codeutils.restart.too_late";

@@ -400,7 +400,7 @@ class UtilsCommandsTest {
 
         runRoot(commands, CommandRoots.RESTART, context);
 
-        assertEquals(UtilsMessages.RESTART_ARMED, context.last().key);
+        assertEquals(UtilsMessages.RESTART_NOW, context.last().key);
         assertTrue(restartPlan.doorClosed());
     }
 

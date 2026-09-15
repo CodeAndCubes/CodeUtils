@@ -15,6 +15,7 @@ import com.mrleonardos.codecore.api.config.ConfigFile;
 import com.mrleonardos.codecore.api.config.ConfigFormat;
 import com.mrleonardos.codecore.api.config.ConfigRoles;
 import com.mrleonardos.codeutils.TestConfigs;
+import com.mrleonardos.codeutils.api.queue.QueueDecision;
 import com.mrleonardos.codeutils.internal.UtilsSettings;
 import com.mrleonardos.codeutils.internal.queue.QueueFile.Tier;
 
@@ -151,7 +152,7 @@ class QueueFileTest {
                 .isEmpty(),
             "ступень без слотов в лестницу не встаёт");
         assertEquals(
-            SlotRules.NO_TIER,
+            QueueDecision.NO_TIER,
             rules.tierOf(UUID.randomUUID(), (player, node) -> true),
             "у ступени без слотов узла не спрашивают");
     }

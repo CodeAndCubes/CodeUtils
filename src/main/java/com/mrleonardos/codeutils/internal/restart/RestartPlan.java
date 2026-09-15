@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -26,6 +25,7 @@ import com.mrleonardos.codeutils.internal.Clocks;
 import com.mrleonardos.codeutils.internal.Conditions;
 import com.mrleonardos.codeutils.internal.SpiNames;
 import com.mrleonardos.codeutils.internal.Subsystem;
+import com.mrleonardos.codeutils.internal.Words;
 import com.mrleonardos.codeutils.internal.command.UtilsMessages;
 
 public final class RestartPlan implements Subsystem, SpiNames.Source {
@@ -50,6 +50,7 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
     private RestartSchedule schedule;
     private BroadcastSink sink;
     private When when;
+    private List<Integer> warnSeconds = Collections.emptyList();
     private long stopAt;
     private RestartReason reason = RestartReason.COMMAND;
     private boolean doorClosed;
@@ -70,8 +71,9 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
         RestartFile written = file.get();
         schedule = RestartSchedule.of(written.schedule.at, written.schedule.days, where(), log, zone);
         when = written.schedule.when.toWhen(where(), log);
-        sink = registry.sink(word(written.warnings.sink))
+        sink = registry.sink(Words.word(written.warnings.sink))
             .orElse(null);
+        warnSeconds = seconds(written);
         if (written.schedule.enabled && schedule.idle()) {
             log.warn("{}: the schedule is on and holds no moment, the server stops only by command", where());
         }
@@ -80,7 +82,7 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
     @Override
     public Map<String, String> sinks() {
         Map<String, String> named = new LinkedHashMap<>();
-        named.put(where(), word(file.get().warnings.sink));
+        named.put(where(), Words.word(file.get().warnings.sink));
         return named;
     }
 
@@ -122,6 +124,7 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
         if (runner.stopping()) {
             return Answer.TOO_LATE;
         }
+        reopen();
         stopAt = stopMillis;
         reason = why;
         return Answer.ARMED;
@@ -131,10 +134,18 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
         if (runner.stopping()) {
             return Answer.TOO_LATE;
         }
+        reopen();
         stopAt = millis;
         reason = RestartReason.COMMAND;
         advance(millis);
         return Answer.ARMED;
+    }
+
+    private void reopen() {
+        if (doorClosed) {
+            shutdown.openDoor();
+            doorClosed = false;
+        }
     }
 
     public Answer cancel(long now) {
@@ -201,7 +212,7 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
 
     private void warn(long from, long to) {
         RestartFile written = file.get();
-        for (Integer second : seconds(written)) {
+        for (Integer second : warnSeconds) {
             long at = stopAt - second.intValue() * Clocks.MILLIS;
             if (at > from && at <= to) {
                 announcer.say(
@@ -226,19 +237,19 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
         }
     }
 
-    private static Set<Integer> seconds(RestartFile written) {
+    private static List<Integer> seconds(RestartFile written) {
         Set<Integer> found = new LinkedHashSet<>();
         for (Integer second : written.warnings.seconds) {
             if (second != null && second.intValue() > 0) {
                 found.add(second);
             }
         }
-        return found;
+        return new ArrayList<>(found);
     }
 
-    private static int lead(RestartFile written) {
+    private int lead(RestartFile written) {
         int lead = Math.max(Math.max(0, written.steps.closeDoorSeconds), Math.max(0, written.steps.kickSeconds));
-        for (Integer second : seconds(written)) {
+        for (Integer second : warnSeconds) {
             lead = Math.max(lead, second.intValue());
         }
         return lead;
@@ -246,11 +257,5 @@ public final class RestartPlan implements Subsystem, SpiNames.Source {
 
     private static String where() {
         return RestartFile.FILE_NAME;
-    }
-
-    private static String word(String value) {
-        return value == null ? ""
-            : value.trim()
-                .toLowerCase(Locale.ROOT);
     }
 }

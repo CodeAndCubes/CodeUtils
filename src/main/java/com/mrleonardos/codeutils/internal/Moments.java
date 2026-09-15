@@ -1,13 +1,18 @@
 package com.mrleonardos.codeutils.internal;
 
 import java.time.DayOfWeek;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
+
+import org.apache.logging.log4j.Logger;
+
+import com.mrleonardos.codeutils.api.when.When;
 
 public final class Moments {
 
     public static final int NONE = -1;
-
-    public static final int MINUTES_IN_DAY = 24 * 60;
 
     private static final char TIME_SEPARATOR = ':';
     private static final char WINDOW_SEPARATOR = '-';
@@ -35,8 +40,24 @@ public final class Moments {
         return hour * MINUTE_LIMIT + minute;
     }
 
+    public static List<Integer> moments(List<String> at, String where, Logger log) {
+        List<Integer> found = new ArrayList<>();
+        for (String written : at == null ? new ArrayList<String>() : at) {
+            int minute = parse(written);
+            if (minute == NONE) {
+                log.warn("{}: at holds {}, which is not a moment of the form HH:MM, it is skipped", where, written);
+                continue;
+            }
+            if (!found.contains(Integer.valueOf(minute))) {
+                found.add(Integer.valueOf(minute));
+            }
+        }
+        Collections.sort(found);
+        return found;
+    }
+
     public static String print(int minuteOfDay) {
-        if (minuteOfDay < 0 || minuteOfDay >= MINUTES_IN_DAY) {
+        if (minuteOfDay < 0 || minuteOfDay >= When.MINUTES_IN_DAY) {
             return "";
         }
         int hour = minuteOfDay / MINUTE_LIMIT;

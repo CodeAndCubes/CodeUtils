@@ -7,12 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.mrleonardos.codeutils.api.queue.QueueDecision;
 import com.mrleonardos.codeutils.internal.Rights;
 import com.mrleonardos.codeutils.internal.queue.QueueFile.Tier;
 
 public final class SlotRules {
-
-    public static final String NO_TIER = "";
 
     private final int base;
     private final List<Step> steps;
@@ -78,7 +77,7 @@ public final class SlotRules {
                 return step.name;
             }
         }
-        return NO_TIER;
+        return QueueDecision.NO_TIER;
     }
 
     public int capOf(String tier) {

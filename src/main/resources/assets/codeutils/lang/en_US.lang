@@ -22,6 +22,7 @@ codeutils.clean.warn=Spare entities go in %s second(s), %s of them
 codeutils.clean.none=No cleanup rule is working
 
 codeutils.restart.armed=Restart in %s
+codeutils.restart.now=The restart is starting
 codeutils.restart.cancelled=Restart is called off
 codeutils.restart.nothing=No restart was set
 codeutils.restart.too_late=Too late to call it off, players are already being kicked
@@ -43,4 +44,4 @@ codeutils.error.unknown_job=There is no job named %s
 codeutils.error.subsystem_off=%s is off in its own settings file
 
 codeutils.reload.done=Settings are re-read
-codeutils.reload.failed=Settings are not re-read, the reason is in the server log
+codeutils.reload.failed=Settings are not fully re-read, it stopped at %s

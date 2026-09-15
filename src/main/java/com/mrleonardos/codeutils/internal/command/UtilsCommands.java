@@ -177,12 +177,13 @@ public final class UtilsCommands {
     }
 
     private void reload(CommandContext context) {
-        if (maintenance.reload()) {
+        String fault = maintenance.reload();
+        if (fault == null) {
             context.reply(UtilsMessages.RELOAD_DONE);
             log.info("Settings were re-read by {}", subjects.actorOf(context));
             return;
         }
-        context.replyError(UtilsMessages.RELOAD_FAILED);
+        context.replyError(UtilsMessages.RELOAD_FAILED, fault);
     }
 
     private void broadcastSet(CommandContext context) {
@@ -310,15 +311,20 @@ public final class UtilsCommands {
             cancelRestart(context);
             return;
         }
-        long stopAt = NOW.equalsIgnoreCase(written) ? now : stopAt(written, now);
+        boolean straight = NOW.equalsIgnoreCase(written);
+        long stopAt = straight ? now : stopAt(written, now);
         if (stopAt <= 0L) {
             context.replyError(UtilsMessages.USAGE_RESTART);
             return;
         }
-        RestartPlan.Answer answer = NOW.equalsIgnoreCase(written) ? restart.now(now)
-            : restart.armAt(stopAt, RestartReason.COMMAND);
+        RestartPlan.Answer answer = straight ? restart.now(now) : restart.armAt(stopAt, RestartReason.COMMAND);
         if (answer == RestartPlan.Answer.TOO_LATE) {
             context.replyError(UtilsMessages.RESTART_TOO_LATE);
+            return;
+        }
+        if (straight) {
+            context.reply(UtilsMessages.RESTART_NOW);
+            log.info("An immediate restart was set by {}", subjects.actorOf(context));
             return;
         }
         context.reply(UtilsMessages.RESTART_ARMED, Durations.format(restart.secondsLeft(now)));

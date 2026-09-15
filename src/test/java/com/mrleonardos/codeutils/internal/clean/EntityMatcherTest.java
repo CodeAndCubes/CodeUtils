@@ -53,13 +53,13 @@ class EntityMatcherTest {
 
     @Test
     void theListIsReadFromLeftToRightSoOrderDecides() {
-        EntityMatcher backwards = of("-Zombie", "@hostile");
+        EntityMatcher minusFirst = of("-Zombie", "@hostile");
 
-        assertTrue(backwards.matches(FakeEntity.zombie()), "вычитание шло до добавления, зомби остались");
+        assertTrue(minusFirst.matches(FakeEntity.zombie()), "минус вычел пустое место, группа взяла зомби назад");
 
-        EntityMatcher forwards = of("@hostile", "-Zombie");
+        EntityMatcher groupFirst = of("@hostile", "-Zombie");
 
-        assertFalse(forwards.matches(FakeEntity.zombie()));
+        assertFalse(groupFirst.matches(FakeEntity.zombie()));
     }
 
     @Test

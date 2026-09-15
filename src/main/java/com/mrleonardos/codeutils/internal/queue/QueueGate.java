@@ -1,9 +1,9 @@
 package com.mrleonardos.codeutils.internal.queue;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.Logger;
@@ -15,6 +15,9 @@ import com.mrleonardos.codeutils.api.queue.QueueRequest;
 import com.mrleonardos.codeutils.api.queue.QueueState;
 import com.mrleonardos.codeutils.api.queue.QueueTicket;
 import com.mrleonardos.codeutils.internal.Rights;
+import com.mrleonardos.codeutils.internal.UtilsTexts;
+import com.mrleonardos.codeutils.internal.Words;
+import com.mrleonardos.codeutils.internal.command.UtilsMessages;
 
 public final class QueueGate {
 
@@ -24,10 +27,10 @@ public final class QueueGate {
     private final Logger log;
 
     private final QueueBoard board = new QueueBoard();
+    private final AtomicInteger online = new AtomicInteger();
 
     private volatile QueuePolicy policy = new BaseOnly();
     private volatile QueueFile settings;
-    private volatile int online;
 
     public QueueGate(Supplier<QueueFile> file, UtilsRegistry registry, Rights rights, Logger log) {
         this.file = file;
@@ -37,10 +40,10 @@ public final class QueueGate {
     }
 
     public void arm(int onlineNow, int maxPlayers) {
-        online = Math.max(0, onlineNow);
+        online.set(Math.max(0, onlineNow));
         QueueFile written = file.get();
         settings = written;
-        QueuePolicy named = registry.policy(word(written.queue.policy))
+        QueuePolicy named = registry.policy(Words.word(written.queue.policy))
             .orElse(null);
         policy = named == null ? new BaseOnly() : named;
         if (named == null) {
@@ -68,7 +71,7 @@ public final class QueueGate {
         board.expire(now, written.queue.ticketSeconds);
         SlotRules rules = SlotRules.of(written);
         QueueDecision decision = chosen
-            .decide(QueueRequest.of(id, name, now), new Board(rules, written, board, rights, online, now));
+            .decide(QueueRequest.of(id, name, now), new Board(rules, written, board, rights, online.get(), now));
         if (decision.allowed()) {
             board.drop(id);
             return Answer.let(decision.tier());
@@ -81,17 +84,23 @@ public final class QueueGate {
     }
 
     public void joined(UUID id) {
-        online++;
+        online.incrementAndGet();
         board.drop(id);
     }
 
     public void left(long now) {
         board.freed(now);
-        online = Math.max(0, online - 1);
+        online.updateAndGet(held -> Math.max(0, held - 1));
     }
 
     public int online() {
-        return online;
+        return online.get();
+    }
+
+    public String refusalOf(Answer answer, UtilsTexts texts) {
+        return answer.place() > 0 ? texts
+            .format(UtilsMessages.QUEUE_REFUSED, Integer.valueOf(answer.place()), Integer.valueOf(retryHintSeconds()))
+            : texts.format(UtilsMessages.QUEUE_FULL);
     }
 
     public int retryHintSeconds() {
@@ -216,11 +225,5 @@ public final class QueueGate {
         public Optional<QueueTicket> heldFor() {
             return board.holding(now, file.queue.holdSeconds) ? Optional.ofNullable(board.head()) : Optional.empty();
         }
-    }
-
-    private static String word(String value) {
-        return value == null ? ""
-            : value.trim()
-                .toLowerCase(Locale.ROOT);
     }
 }

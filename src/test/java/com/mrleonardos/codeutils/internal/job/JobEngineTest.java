@@ -80,6 +80,38 @@ class JobEngineTest {
     }
 
     @Test
+    void aReloadDoesNotReopenTheCatchUpWindow() {
+        JobBlock block = job("save-all", 0, "04:00");
+        block.catchUpSeconds = 300;
+        put("save", block);
+        JobEngine engine = engine();
+        engine.arm(at("2026-09-03T03:00:00"));
+        long done = at("2026-09-03T04:00:30");
+
+        engine.tick(0L, done, snapshot("2026-09-03T04:00:30"));
+        assertEquals(1, runner.runs());
+
+        engine.arm(at("2026-09-03T04:02:00"));
+        engine.tick(done, at("2026-09-03T04:02:01"), snapshot("2026-09-03T04:02:01"));
+
+        assertEquals(1, runner.runs(), "момент уже сработал, reload не исполняет его второй раз");
+    }
+
+    @Test
+    void aJobBornByReloadDoesNotLookBackEither() {
+        JobBlock block = job("say hi", 0, "03:00");
+        block.catchUpSeconds = 3900;
+        JobEngine engine = engine();
+        engine.arm(at("2026-09-03T03:30:00"));
+
+        put("fresh", block);
+        engine.arm(at("2026-09-03T04:00:00"));
+        engine.tick(0L, at("2026-09-03T04:00:01"), snapshot("2026-09-03T04:00:01"));
+
+        assertEquals(0, runner.runs(), "новому заданию окно catchUp при reload не выдаётся");
+    }
+
+    @Test
     void twoMomentsInsideOneJumpGiveTwoRuns() {
         put("save", job("save-all", 0, "04:00", "04:02"));
         JobEngine engine = engine();

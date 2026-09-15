@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -25,6 +24,7 @@ import com.mrleonardos.codeutils.internal.ServerFacts;
 import com.mrleonardos.codeutils.internal.SpiNames;
 import com.mrleonardos.codeutils.internal.Subsystem;
 import com.mrleonardos.codeutils.internal.WhenBlock;
+import com.mrleonardos.codeutils.internal.Words;
 import com.mrleonardos.codeutils.internal.job.JobsFile.JobBlock;
 
 public final class JobEngine implements Subsystem, SpiNames.Source {
@@ -39,6 +39,8 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
 
     private final Map<String, Live> live = new LinkedHashMap<>();
 
+    private boolean started;
+
     public JobEngine(Supplier<JobsFile> file, UtilsRegistry registry, Conditions conditions, ServerFacts facts,
         Supplier<ZoneId> zone, Supplier<Boolean> audit, Logger log) {
         this.file = file;
@@ -51,6 +53,12 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
     }
 
     public void arm(long now) {
+        Map<String, Long> carried = new LinkedHashMap<>();
+        for (Map.Entry<String, Live> entry : live.entrySet()) {
+            carried.put(entry.getKey(), Long.valueOf(entry.getValue().previous));
+        }
+        boolean fresh = !started;
+        started = true;
         live.clear();
         for (Map.Entry<String, JobBlock> entry : file.get().jobs.entrySet()) {
             String name = entry.getKey();
@@ -63,7 +71,7 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
                 log.warn("Job {} holds no command, it stays quiet", name);
                 continue;
             }
-            CommandRunner runner = registry.runner(word(block.runner))
+            CommandRunner runner = registry.runner(Words.word(block.runner))
                 .orElse(null);
             if (runner == null) {
                 continue;
@@ -74,7 +82,14 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
                 continue;
             }
             job.schedule.arm(now);
-            job.previous = now - Math.max(0, block.catchUpSeconds) * Clocks.MILLIS;
+            Long before = carried.get(name);
+            if (before != null) {
+                job.previous = before.longValue();
+            } else if (fresh) {
+                job.previous = now - Math.max(0, block.catchUpSeconds) * Clocks.MILLIS;
+            } else {
+                job.previous = now;
+            }
             live.put(name, job);
         }
     }
@@ -91,7 +106,7 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
             JobBlock block = entry.getValue();
             if (block.enabled && !block.command.trim()
                 .isEmpty()) {
-                named.put(where(entry.getKey()), word(block.runner));
+                named.put(where(entry.getKey()), Words.word(block.runner));
             }
         }
         return named;
@@ -225,7 +240,7 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
     }
 
     private void failed(Live job, CommandTicket ticket, RunOutcome outcome, long now) {
-        String policy = word(job.block.onFailure);
+        String policy = Words.word(job.block.onFailure);
         if (JobsFile.ON_FAILURE_QUIET.equals(policy)) {
             return;
         }
@@ -260,12 +275,6 @@ public final class JobEngine implements Subsystem, SpiNames.Source {
 
     private static String where(String name) {
         return JobsFile.FILE_NAME + " job " + name;
-    }
-
-    private static String word(String value) {
-        return value == null ? ""
-            : value.trim()
-                .toLowerCase(Locale.ROOT);
     }
 
     private final class Live {

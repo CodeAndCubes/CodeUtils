@@ -29,16 +29,36 @@ public final class UtilsMaintenance {
         return files.size();
     }
 
-    public boolean reload() {
-        try {
-            for (ConfigFile<?> file : files) {
+    public String reload() {
+        int done = 0;
+        for (ConfigFile<?> file : files) {
+            try {
                 file.reload();
+                done++;
+            } catch (RuntimeException failure) {
+                log.warn(
+                    "{} was not re-read, {} of {} file(s) before it were, the rest are not touched "
+                        + "and nothing is rearmed: {}",
+                    name(file),
+                    Integer.valueOf(done),
+                    Integer.valueOf(files.size()),
+                    failure.toString(),
+                    failure);
+                return name(file) + ": " + said(failure);
             }
-            rearm.run();
-            return true;
-        } catch (RuntimeException failure) {
-            log.warn("Settings were not re-read, the mod keeps what it had: {}", failure.toString(), failure);
-            return false;
         }
+        rearm.run();
+        return null;
+    }
+
+    private static String said(RuntimeException failure) {
+        return failure.getMessage() == null ? failure.toString() : failure.getMessage();
+    }
+
+    private static String name(ConfigFile<?> file) {
+        return file.path() == null ? "?"
+            : file.path()
+                .getFileName()
+                .toString();
     }
 }

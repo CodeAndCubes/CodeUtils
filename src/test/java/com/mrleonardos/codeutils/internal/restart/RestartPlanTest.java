@@ -43,6 +43,30 @@ class RestartPlanTest extends RestartTests {
     }
 
     @Test
+    void aNewPlanOverAClosedDoorGivesTheDoorBack() {
+        file.steps.closeDoorSeconds = 30;
+        file.steps.kickSeconds = 5;
+        warnAt();
+        RestartPlan plan = plan(runner());
+        long start = at("2026-09-03T05:00:00");
+        plan.armAt(start + 60 * SECOND, RestartReason.COMMAND);
+
+        plan.tick(start + 29 * SECOND, start + 31 * SECOND, snapshot("2026-09-03T05:00:31"));
+        assertTrue(plan.doorClosed());
+
+        assertEquals(RestartPlan.Answer.ARMED, plan.armAt(start + 3600 * SECOND, RestartReason.COMMAND));
+
+        assertFalse(plan.doorClosed(), "перевооружение сбрасывает закрытую дверь");
+        assertEquals(
+            list(FakeShutdown.DOOR_CLOSED, FakeShutdown.DOOR_OPEN),
+            shutdown.journal(),
+            "дверь открыта снова и закроется по срокам нового плана");
+
+        plan.tick(start + 31 * SECOND, start + 32 * SECOND, snapshot("2026-09-03T05:00:32"));
+        assertFalse(plan.doorClosed(), "новый план закрывает дверь за свои тридцать секунд, а не час раньше");
+    }
+
+    @Test
     void theDoorClosesItsOwnSecondsBeforeTheKick() {
         file.steps.closeDoorSeconds = 30;
         file.steps.kickSeconds = 5;

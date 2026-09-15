@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.IntSupplier;
@@ -26,6 +25,7 @@ import com.mrleonardos.codeutils.internal.Conditions;
 import com.mrleonardos.codeutils.internal.SpiNames;
 import com.mrleonardos.codeutils.internal.Subsystem;
 import com.mrleonardos.codeutils.internal.WhenBlock;
+import com.mrleonardos.codeutils.internal.Words;
 import com.mrleonardos.codeutils.internal.clean.CleanupFile.RuleBlock;
 import com.mrleonardos.codeutils.internal.command.UtilsMessages;
 
@@ -90,7 +90,7 @@ public final class CleanupEngine implements Subsystem, SpiNames.Source {
         for (Map.Entry<String, RuleBlock> entry : file.get().rules.entrySet()) {
             RuleBlock block = entry.getValue();
             if (block.enabled && !block.warnSeconds.isEmpty()) {
-                named.put(where(entry.getKey()), word(block.warnSink));
+                named.put(where(entry.getKey()), Words.word(block.warnSink));
             }
         }
         return named;
@@ -177,16 +177,16 @@ public final class CleanupEngine implements Subsystem, SpiNames.Source {
     }
 
     private void due(Live rule, long now) {
-        CleanupReport counted = sweep(rule, false);
-        if (counted.matched() == 0) {
+        Pass counted = survey(rule);
+        if (counted.victims.isEmpty()) {
             return;
         }
         List<Integer> seconds = warnSeconds(rule.block);
         if (seconds.isEmpty()) {
-            sweep(rule, true);
+            finish(rule, counted, true);
             return;
         }
-        rule.counted = counted.matched();
+        rule.counted = counted.victims.size();
         rule.removeAt = now + seconds.get(0)
             .intValue() * Clocks.MILLIS;
         announce(
@@ -214,6 +214,10 @@ public final class CleanupEngine implements Subsystem, SpiNames.Source {
     }
 
     private CleanupReport sweep(Live rule, boolean remove) {
+        return finish(rule, survey(rule), remove);
+    }
+
+    private Pass survey(Live rule) {
         long started = System.nanoTime();
         List<EntityView> loaded = sweep.loaded(rule.dimensions());
         List<EntityView> matched = new ArrayList<>();
@@ -227,10 +231,13 @@ public final class CleanupEngine implements Subsystem, SpiNames.Source {
             Integer held = perChunk.get(chunk);
             perChunk.put(chunk, Integer.valueOf(held == null ? 1 : held.intValue() + 1));
         }
-        List<EntityView> victims = victims(rule, matched, perChunk);
-        int removed = remove && !victims.isEmpty() ? sweep.remove(victims) : 0;
-        CleanupReport report = CleanupReport
-            .of(rule.name, loaded.size(), matched.size(), removed, (System.nanoTime() - started) / NANOS_IN_MILLI);
+        List<EntityView> chosen = victims(rule, matched, perChunk);
+        return new Pass(matched, chosen, loaded.size(), (System.nanoTime() - started) / NANOS_IN_MILLI);
+    }
+
+    private CleanupReport finish(Live rule, Pass pass, boolean remove) {
+        int removed = remove && !pass.victims.isEmpty() ? sweep.remove(pass.victims) : 0;
+        CleanupReport report = CleanupReport.of(rule.name, pass.scanned, pass.matched.size(), removed, pass.millis);
         report(rule, report, remove);
         return report;
     }
@@ -315,10 +322,19 @@ public final class CleanupEngine implements Subsystem, SpiNames.Source {
         return CleanupFile.FILE_NAME + " rule " + name;
     }
 
-    private static String word(String value) {
-        return value == null ? ""
-            : value.trim()
-                .toLowerCase(Locale.ROOT);
+    private static final class Pass {
+
+        private final List<EntityView> matched;
+        private final List<EntityView> victims;
+        private final int scanned;
+        private final long millis;
+
+        private Pass(List<EntityView> matched, List<EntityView> victims, int scanned, long millis) {
+            this.matched = matched;
+            this.victims = victims;
+            this.scanned = scanned;
+            this.millis = millis;
+        }
     }
 
     private final class Live {
@@ -347,7 +363,7 @@ public final class CleanupEngine implements Subsystem, SpiNames.Source {
         }
 
         private BroadcastSink sink(UtilsRegistry from) {
-            return from.sink(word(block.warnSink))
+            return from.sink(Words.word(block.warnSink))
                 .orElse(null);
         }
     }

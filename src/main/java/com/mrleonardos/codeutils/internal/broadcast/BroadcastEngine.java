@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.function.Supplier;
@@ -17,17 +16,17 @@ import com.mrleonardos.codeutils.api.message.BroadcastSink;
 import com.mrleonardos.codeutils.api.message.Message;
 import com.mrleonardos.codeutils.api.when.ServerSnapshot;
 import com.mrleonardos.codeutils.api.when.When;
+import com.mrleonardos.codeutils.internal.Clocks;
 import com.mrleonardos.codeutils.internal.Conditions;
 import com.mrleonardos.codeutils.internal.ServerFacts;
 import com.mrleonardos.codeutils.internal.SpiNames;
 import com.mrleonardos.codeutils.internal.Subsystem;
 import com.mrleonardos.codeutils.internal.WhenBlock;
+import com.mrleonardos.codeutils.internal.Words;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile.MessageBlock;
 import com.mrleonardos.codeutils.internal.broadcast.BroadcastsFile.SetBlock;
 
 public final class BroadcastEngine implements Subsystem, SpiNames.Source {
-
-    private static final long MILLIS = 1000L;
 
     private final Supplier<BroadcastsFile> file;
     private final UtilsRegistry registry;
@@ -62,14 +61,14 @@ public final class BroadcastEngine implements Subsystem, SpiNames.Source {
                 log.warn("Broadcast set {} holds no messages, it stays quiet", name);
                 continue;
             }
-            BroadcastSink sink = registry.sink(word(block.sink))
+            BroadcastSink sink = registry.sink(Words.word(block.sink))
                 .orElse(null);
             if (sink == null) {
                 continue;
             }
             Live set = new Live(name, block, sink, new Rotation(Rotation.order(block.order, where(name), log), random));
             if (block.intervalSeconds > 0) {
-                set.deadline = now + Math.max(0, block.firstDelaySeconds) * MILLIS;
+                set.deadline = now + Math.max(0, block.firstDelaySeconds) * Clocks.MILLIS;
             } else {
                 log.info(
                     "Broadcast set {} has intervalSeconds = 0, it goes out only by /codeutils broadcast {}",
@@ -86,7 +85,7 @@ public final class BroadcastEngine implements Subsystem, SpiNames.Source {
         for (Map.Entry<String, SetBlock> entry : file.get().sets.entrySet()) {
             SetBlock block = entry.getValue();
             if (block.enabled && !block.messages.isEmpty()) {
-                named.put(where(entry.getKey()), word(block.sink));
+                named.put(where(entry.getKey()), Words.word(block.sink));
             }
         }
         return named;
@@ -119,7 +118,7 @@ public final class BroadcastEngine implements Subsystem, SpiNames.Source {
             if (set.deadline == 0L || to < set.deadline) {
                 continue;
             }
-            set.deadline = to + set.block.intervalSeconds * MILLIS;
+            set.deadline = to + set.block.intervalSeconds * Clocks.MILLIS;
             if (!conditions.allows(set.when, snapshot)) {
                 continue;
             }
@@ -169,7 +168,7 @@ public final class BroadcastEngine implements Subsystem, SpiNames.Source {
             deliver(set, next(set), recipients);
             return;
         }
-        String mode = word(set.block.whenEmpty);
+        String mode = Words.word(set.block.whenEmpty);
         if (BroadcastsFile.EMPTY_SKIP.equals(mode)) {
             set.rotation.skip(set.block.messages.size());
             return;
@@ -224,12 +223,6 @@ public final class BroadcastEngine implements Subsystem, SpiNames.Source {
 
     private static String where(String name) {
         return BroadcastsFile.FILE_NAME + " set " + name;
-    }
-
-    private static String word(String value) {
-        return value == null ? ""
-            : value.trim()
-                .toLowerCase(Locale.ROOT);
     }
 
     private final class Live {

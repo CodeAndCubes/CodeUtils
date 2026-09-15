@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,6 +15,8 @@ import com.mrleonardos.codeutils.api.UtilsRegistry;
 import com.mrleonardos.codeutils.api.queue.QueueDecision;
 import com.mrleonardos.codeutils.api.queue.QueueTicket;
 import com.mrleonardos.codeutils.internal.Clocks;
+import com.mrleonardos.codeutils.internal.FakeTexts;
+import com.mrleonardos.codeutils.internal.command.UtilsMessages;
 
 class QueueGateTest {
 
@@ -232,6 +235,60 @@ class QueueGateTest {
             gate.decide(plain, "Plain", START)
                 .tier(),
             "у игрока без ступени её и нет");
+    }
+
+    @Test
+    void theRefusalCarriesThePlaceAndTheRetryHint() {
+        file.queue.retryHintSeconds = 20;
+        QueueGate gate = gate(60);
+        gate.decide(other, "Other", START);
+
+        QueueGate.Answer answer = gate.decide(plain, "Plain", START + SECOND);
+
+        assertEquals(
+            UtilsMessages.QUEUE_REFUSED + "[2, 20]",
+            gate.refusalOf(answer, new FakeTexts()),
+            "номер в очереди и подсказка повторного стука уходят в текст отказа");
+    }
+
+    @Test
+    void theRefusalWithoutAPlaceSpeaksOfAFullServerOnly() {
+        file.queue.enabled = false;
+        QueueGate gate = gate(60);
+
+        QueueGate.Answer answer = gate.decide(plain, "Plain", START);
+
+        assertEquals(UtilsMessages.QUEUE_FULL, gate.refusalOf(answer, new FakeTexts()));
+    }
+
+    @Test
+    void parallelJoinsAreAllCounted() throws InterruptedException {
+        QueueGate gate = gate(0);
+        int threads = 8;
+        int each = 500;
+        Thread[] joiners = new Thread[threads];
+        CountDownLatch go = new CountDownLatch(1);
+        for (int index = 0; index < threads; index++) {
+            UUID who = UUID.nameUUIDFromBytes(("Joiner" + index).getBytes());
+            joiners[index] = new Thread(() -> {
+                try {
+                    go.await();
+                } catch (InterruptedException stopped) {
+                    Thread.currentThread()
+                        .interrupt();
+                }
+                for (int knock = 0; knock < each; knock++) {
+                    gate.joined(who);
+                }
+            }, "joiner-" + index);
+            joiners[index].start();
+        }
+        go.countDown();
+        for (Thread joiner : joiners) {
+            joiner.join();
+        }
+
+        assertEquals(threads * each, gate.online(), "вход из многих потоков не теряет ни одного счёта");
     }
 
     private QueueGate gate(int online) {

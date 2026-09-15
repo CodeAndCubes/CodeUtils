@@ -51,10 +51,6 @@ public final class CodeUtilsApi {
         runtime = Objects.requireNonNull(installed, "installed");
     }
 
-    static void uninstall() {
-        runtime = null;
-    }
-
     private static UtilsRuntime runtime() {
         UtilsRuntime installed = runtime;
         if (installed == null) {

@@ -187,6 +187,56 @@ class CleanupEngineTest {
     }
 
     @Test
+    void aThresholdThatIsNotPassedSaysNothingEvenWithWarningsOn() {
+        RuleBlock block = rule(60, "@item");
+        block.worldThreshold = 600;
+        block.warnSeconds = new ArrayList<>(Arrays.asList(Integer.valueOf(30), Integer.valueOf(10)));
+        put("zoo", block);
+        sweep.add(
+            FakeEntity.zombie(),
+            FakeEntity.zombie(),
+            FakeEntity.zombie(),
+            FakeEntity.zombie(),
+            FakeEntity.zombie());
+        CleanupEngine engine = engine();
+        long start = at("2026-09-03T04:00:00");
+        engine.arm(start);
+
+        engine.tick(start, start + 60 * SECOND, snapshot("2026-09-03T04:01:00"));
+        engine.tick(start + 60 * SECOND, start + 120 * SECOND, snapshot("2026-09-03T04:02:00"));
+        engine.tick(start + 120 * SECOND, start + 300 * SECOND, snapshot("2026-09-03T04:05:00"));
+
+        assertEquals(0, sink.sends(), "порог не достигнут, вечних предупреждений нет");
+        assertEquals(
+            0,
+            sweep.removed()
+                .size());
+        assertEquals(0, sweep.removeCalls(), "и удаляющего прохода тоже не было");
+    }
+
+    @Test
+    void aThresholdThatIsPassedSpeaksOfWhatItWillReallyRemove() {
+        RuleBlock block = rule(60, "@item");
+        block.worldThreshold = 2;
+        block.warnSeconds = new ArrayList<>(Arrays.asList(Integer.valueOf(30)));
+        put("drops", block);
+        sweep.add(FakeEntity.item(), FakeEntity.item(), FakeEntity.item());
+        CleanupEngine engine = engine();
+        long start = at("2026-09-03T04:00:00");
+        engine.arm(start);
+
+        engine.tick(start, start + 60 * SECOND, snapshot("2026-09-03T04:01:00"));
+
+        assertEquals(1, sink.sends());
+        assertTrue(
+            sink.texts()
+                .get(0)
+                .contains(UtilsMessages.CLEAN_WARN + "[30, 3]"),
+            sink.texts()
+                .toString());
+    }
+
+    @Test
     void aChunkThresholdTakesOnlyTheChunksThatAreOverIt() {
         RuleBlock block = rule(60, "@item");
         block.chunkThreshold = 2;

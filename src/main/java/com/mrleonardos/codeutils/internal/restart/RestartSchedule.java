@@ -31,18 +31,6 @@ public final class RestartSchedule {
 
     public static RestartSchedule of(List<String> at, List<String> days, String where, Logger log,
         Supplier<ZoneId> zone) {
-        List<Integer> found = new ArrayList<>();
-        for (String written : at == null ? new ArrayList<String>() : at) {
-            int minute = Moments.parse(written);
-            if (minute == Moments.NONE) {
-                log.warn("{}: at holds {}, which is not a moment of the form HH:MM, it is skipped", where, written);
-                continue;
-            }
-            if (!found.contains(Integer.valueOf(minute))) {
-                found.add(minute);
-            }
-        }
-        Collections.sort(found);
         Set<DayOfWeek> chosen = EnumSet.noneOf(DayOfWeek.class);
         for (String written : days == null ? new ArrayList<String>() : days) {
             DayOfWeek day = Moments.day(written);
@@ -52,7 +40,7 @@ public final class RestartSchedule {
             }
             chosen.add(day);
         }
-        return new RestartSchedule(found, chosen, zone);
+        return new RestartSchedule(Moments.moments(at, where, log), chosen, zone);
     }
 
     public boolean idle() {
